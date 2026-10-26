@@ -2,6 +2,7 @@ import { getStore } from '@netlify/blobs';
 import { DEFAULT_CATEGORIES } from '../../src/lib/categories';
 import { applyOp } from '../../src/lib/ops';
 import type { Trip } from '../../src/lib/types';
+import { sendExpenseAlerts } from './alerts';
 import type { SessionUser } from './auth';
 import { HttpError, json, noContent, randomToken, readJson } from './http';
 import { rememberSavedPeople } from './people';
@@ -80,7 +81,8 @@ export async function getTrip(user: SessionUser, id: string) {
   return json({ trip: current.trip });
 }
 
-export async function applyOps(req: Request, user: SessionUser, id: string) {
+/** `defer` runs follow-up work after the response, such as telling linked people about their new expenses. */
+export async function applyOps(req: Request, user: SessionUser, id: string, defer: (task: Promise<unknown>) => void) {
   const submitted = parseOps(await readJson(req), user.id);
   const [first, ...rest] = submitted;
   let ops = submitted;
@@ -118,8 +120,15 @@ export async function applyOps(req: Request, user: SessionUser, id: string) {
     ops = rest;
   }
   if (ops.some((op) => op.type === 'trip/create')) throw new HttpError(400, 'Some changes were invalid');
-  const trip = await mutateTrip(id, user, (current) => ops.reduce((acc, op) => applyOp(acc, op) ?? acc, current));
+  let createdIds = new Set<string>();
+  const trip = await mutateTrip(id, user, (current) => {
+    const existing = new Set(current.expenses.map((expense) => expense.id));
+    createdIds = new Set(ops.flatMap((op) => (op.type === 'expense/upsert' && !existing.has(op.expense.id) ? [op.expense.id] : [])));
+    return ops.reduce((acc, op) => applyOp(acc, op) ?? acc, current);
+  });
   await rememberSavedPeople(user.id, submitted, trip);
+  const created = trip.expenses.filter((expense) => createdIds.has(expense.id));
+  if (created.length > 0) defer(sendExpenseAlerts(trip, created, user.id));
   return json({ trip });
 }
 
@@ -203,6 +212,7 @@ export async function invitePreview(token: string, user: SessionUser | null) {
       startDate: trip.startDate,
       endDate: trip.endDate,
       memberCount: trip.members.length,
+      people: trip.people.map(({ id, name }) => ({ id, name })),
       ownerName: trip.members.find((member) => member.role === 'owner')?.username ?? '',
       alreadyMember: !!user && trip.members.some((member) => member.userId === user.id),
     },

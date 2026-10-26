@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowRight, ChevronDown, CircleCheck, Pencil, QrCode, TriangleAlert, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, CircleCheck, Link2, Pencil, QrCode, TriangleAlert, X } from 'lucide-react';
 import { categoryOf } from '../../lib/categories';
 import { formatShortDate, pluralize } from '../../lib/dates';
 import { formatMoney } from '../../lib/money';
@@ -21,6 +21,7 @@ type Props = {
   onShowQr?: (person: Person) => void;
   onRemoveSettlement?: (settlementId: string) => void;
   onEditPerson?: (person: Person) => void;
+  onLinkPerson?: (person: Person) => void;
   onAddPerson?: (name: string) => void;
 };
 
@@ -35,6 +36,7 @@ export function BalancesPanel({
   onShowQr,
   onRemoveSettlement,
   onEditPerson,
+  onLinkPerson,
   onAddPerson,
 }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -182,6 +184,7 @@ export function BalancesPanel({
         <ul className="sticker-sm divide-y divide-zinc-100 overflow-hidden rounded-2xl bg-white">
           {summary.people.map(({ person, personal, shared, total, paid, balance, items }) => {
             const isOpen = expandedId === person.id;
+            const linkedMember = trip.members.find((member) => member.personId === person.id);
             const detail = hasPayers
               ? `Share ${money(total)} · Paid ${money(paid)}`
               : [personal && `Personal ${money(personal)}`, shared && `Shared ${money(shared)}`].filter(Boolean).join(' · ') ||
@@ -261,6 +264,23 @@ export function BalancesPanel({
                         <span className="text-zinc-500">UPI ID not added</span>
                         <span className="font-medium text-emerald-700">Add</span>
                       </button>
+                    )}
+                    {linkedMember ? (
+                      <p className="mt-2 flex items-center gap-1.5 px-1 text-sm text-zinc-500">
+                        <Link2 className="size-3.5" />
+                        Linked to @{linkedMember.username}
+                      </p>
+                    ) : (
+                      onLinkPerson && (
+                        <button
+                          type="button"
+                          onClick={() => onLinkPerson(person)}
+                          className="mt-2 flex w-full items-center justify-between gap-2 rounded-xl bg-white px-3 py-2.5 text-left text-sm ring-1 ring-zinc-200 transition hover:bg-zinc-50"
+                        >
+                          <span className="text-zinc-500">Not linked to an account</span>
+                          <span className="font-medium text-emerald-700">Link account</span>
+                        </button>
+                      )
                     )}
                     {onEditPerson && (
                       <button

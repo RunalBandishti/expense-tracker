@@ -48,10 +48,10 @@ export function UserMenu({ placement = 'down', showName = false }: { placement?:
 
   const items: MenuItem[] = [];
   if (reminders.status === 'on') {
-    items.push({ label: 'Turn off reminders', icon: <BellOff className="size-4" />, onSelect: () => void reminders.turnOff() });
+    items.push({ label: 'Turn off notifications', icon: <BellOff className="size-4" />, onSelect: () => void reminders.turnOff() });
   } else if (reminders.status !== 'checking') {
     items.push({
-      label: reminders.status === 'blocked' ? 'Reminders are blocked' : 'Turn on reminders',
+      label: reminders.status === 'blocked' ? 'Notifications are blocked' : 'Turn on notifications',
       icon: <Bell className="size-4" />,
       onSelect: () => void reminders.turnOn(),
     });

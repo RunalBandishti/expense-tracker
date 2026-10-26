@@ -1,4 +1,4 @@
-import type { Config } from '@netlify/functions';
+import type { Config, Context } from '@netlify/functions';
 import { handleAuth, readSession } from '../lib/auth';
 import { HttpError, json } from '../lib/http';
 import { listSavedPeople } from '../lib/people';
@@ -31,7 +31,7 @@ const ROUTES = {
   acceptInvite: route(`/invites/${TOKEN}/accept`),
 };
 
-async function handle(req: Request): Promise<Response> {
+async function handle(req: Request, context: Context): Promise<Response> {
   const path = new URL(req.url).pathname.replace(/^\/api/, '').replace(/\/+$/, '');
   const { method } = req;
 
@@ -52,7 +52,8 @@ async function handle(req: Request): Promise<Response> {
   }
   if ((match = path.match(ROUTES.tripAction))) {
     const [, id, action] = match;
-    if (action === 'ops' && method === 'POST') return applyOps(req, user, id);
+    // The local emulator has no waitUntil; there the task simply keeps running.
+    if (action === 'ops' && method === 'POST') return applyOps(req, user, id, (task) => context.waitUntil?.(task));
     if (action === 'leave' && method === 'POST') return leaveTrip(user, id);
     if ((action === 'share' || action === 'invite') && method === 'POST') return createLink(user, id, action);
     if ((action === 'share' || action === 'invite') && method === 'DELETE') return revokeLink(user, id, action);
@@ -66,9 +67,9 @@ async function handle(req: Request): Promise<Response> {
   return json({ error: 'Not found' }, 404);
 }
 
-export default async (req: Request) => {
+export default async (req: Request, context: Context) => {
   try {
-    return await handle(req);
+    return await handle(req, context);
   } catch (err) {
     if (err instanceof HttpError) return json({ error: err.message }, err.status);
     console.error(err);

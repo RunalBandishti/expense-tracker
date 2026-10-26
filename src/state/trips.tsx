@@ -37,7 +37,7 @@ type TripsContextValue = {
   removeTrip: (tripId: string) => void;
   receiveTrip: (trip: Trip) => void;
   refreshTrip: (tripId: string) => Promise<void>;
-  runAction: (tripId: string, path: string, method: 'POST' | 'DELETE') => Promise<void>;
+  runAction: (tripId: string, path: string, method: 'POST' | 'DELETE') => Promise<Trip>;
   retryLoad: () => void;
 };
 
@@ -286,6 +286,7 @@ export function TripsProvider({ user, children }: { user: User; children: ReactN
         const { trip } = await api<{ trip: Trip }>(`/trips/${tripId}${path}`, { method });
         acceptServerCopy(trip);
         commit();
+        return trip;
       },
     };
   }, [entries, cacheKey, user]);

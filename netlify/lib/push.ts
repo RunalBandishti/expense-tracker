@@ -1,6 +1,7 @@
 import { getStore } from '@netlify/blobs';
 import { createHash, generateKeyPairSync } from 'node:crypto';
-import { testNotification, type ReminderNotification } from '../../src/lib/reminders';
+import webpush from 'web-push';
+import { testNotification, type PushNotification } from '../../src/lib/reminders';
 import { configStore, type SessionUser } from './auth';
 import { asString, HttpError, json, noContent, readJson } from './http';
 
@@ -21,6 +22,9 @@ const PUSH_TTL_SECONDS = 60 * 60;
 
 export const subscriptionsStore = () => getStore({ name: 'push-subscriptions', consistency: 'strong' });
 const subscriptionKey = (endpoint: string) => createHash('sha256').update(endpoint).digest('base64url');
+/** Lists each user's devices, so one person can be notified without scanning every subscription. */
+const devicesStore = () => getStore({ name: 'push-devices', consistency: 'strong' });
+const deviceKey = (userId: string, key: string) => `${userId}/${key}`;
 
 function generateVapidKeys(): VapidKeys {
   const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
@@ -45,9 +49,8 @@ export async function vapidKeys() {
 }
 
 /** Resolves whether it was delivered; subscriptions the push service has dropped are deleted. */
-export async function sendPush(key: string, stored: StoredSubscription, notification: ReminderNotification) {
-  // Loaded on demand so API cold starts don't pay for it; the API only needs it for test pushes.
-  const [{ default: webpush }, { publicKey, privateKey }] = await Promise.all([import('web-push'), vapidKeys()]);
+export async function sendPush(key: string, stored: StoredSubscription, notification: PushNotification) {
+  const { publicKey, privateKey } = await vapidKeys();
   try {
     await webpush.sendNotification(stored.subscription, JSON.stringify(notification), {
       TTL: PUSH_TTL_SECONDS,
@@ -56,10 +59,25 @@ export async function sendPush(key: string, stored: StoredSubscription, notifica
     return true;
   } catch (err) {
     // 404 and 410 mean the browser dropped the subscription, e.g. notifications were turned off.
-    if (err instanceof webpush.WebPushError && (err.statusCode === 404 || err.statusCode === 410)) await subscriptionsStore().delete(key);
-    else console.error('Push failed', err);
+    if (err instanceof webpush.WebPushError && (err.statusCode === 404 || err.statusCode === 410)) {
+      await Promise.all([subscriptionsStore().delete(key), devicesStore().delete(deviceKey(stored.userId, key))]);
+    } else {
+      console.error('Push failed', err);
+    }
     return false;
   }
+}
+
+export async function notifyUser(userId: string, notification: PushNotification) {
+  const { blobs } = await devicesStore().list({ prefix: `${userId}/` });
+  await Promise.all(
+    blobs.map(async ({ key: indexKey }) => {
+      const key = indexKey.slice(userId.length + 1);
+      const stored = (await subscriptionsStore().get(key, { type: 'json' })) as StoredSubscription | null;
+      if (stored?.userId === userId) await sendPush(key, stored, notification);
+      else await devicesStore().delete(indexKey);
+    }),
+  );
 }
 
 function isPushEndpoint(endpoint: string) {
@@ -95,10 +113,14 @@ export async function saveSubscription(req: Request, user: SessionUser) {
   const auth = asString(body.subscription?.keys?.auth);
   const timeZone = asString(body.timeZone);
   if (!isPushEndpoint(endpoint) || !BASE64URL_KEY.test(p256dh) || !BASE64URL_KEY.test(auth) || !isTimeZone(timeZone)) {
-    throw new HttpError(400, "Couldn't turn on reminders on this device");
+    throw new HttpError(400, "Couldn't turn on notifications on this device");
   }
   const stored: StoredSubscription = { userId: user.id, subscription: { endpoint, keys: { p256dh, auth } }, timeZone };
-  await subscriptionsStore().setJSON(subscriptionKey(endpoint), stored);
+  const key = subscriptionKey(endpoint);
+  const previous = (await subscriptionsStore().get(key, { type: 'json' })) as StoredSubscription | null;
+  await subscriptionsStore().setJSON(key, stored);
+  await devicesStore().set(deviceKey(user.id, key), '1');
+  if (previous && previous.userId !== user.id) await devicesStore().delete(deviceKey(previous.userId, key));
   return noContent();
 }
 
@@ -107,14 +129,14 @@ export async function deleteSubscription(req: Request, user: SessionUser) {
   const store = subscriptionsStore();
   const key = subscriptionKey(endpoint);
   const stored = (await store.get(key, { type: 'json' })) as StoredSubscription | null;
-  if (stored?.userId === user.id) await store.delete(key);
+  if (stored?.userId === user.id) await Promise.all([store.delete(key), devicesStore().delete(deviceKey(user.id, key))]);
   return noContent();
 }
 
 export async function sendTestPush(req: Request, user: SessionUser) {
   const key = subscriptionKey(asString((await readJson<{ endpoint?: unknown }>(req)).endpoint));
   const stored = (await subscriptionsStore().get(key, { type: 'json' })) as StoredSubscription | null;
-  if (stored?.userId !== user.id) throw new HttpError(404, 'Turn on reminders on this device first');
+  if (stored?.userId !== user.id) throw new HttpError(404, 'Turn on notifications on this device first');
   if (!(await sendPush(key, stored, testNotification))) {
     throw new HttpError(502, "Couldn't send a test notification to this device. Try again.");
   }

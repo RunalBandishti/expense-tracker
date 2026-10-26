@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { LoaderCircle } from 'lucide-react';
 import { Button, EmptyState, PageLoader } from '../components/ui';
 import { api } from '../lib/api';
@@ -10,12 +10,14 @@ import { useTrips } from '../state/trips';
 
 export function JoinPage() {
   const { token } = useParams();
-  const { receiveTrip } = useTrips();
+  const [searchParams] = useSearchParams();
+  const { user, receiveTrip, apply } = useTrips();
   const navigate = useNavigate();
   const toast = useToast();
   const [invite, setInvite] = useState<InvitePreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+  const joiningAs = invite?.people.find((person) => person.id === searchParams.get('as'));
 
   useEffect(() => {
     api<{ invite: InvitePreview }>(`/invites/${token}`).then(
@@ -32,6 +34,10 @@ export function JoinPage() {
     try {
       const { trip } = await api<{ trip: Trip }>(`/invites/${token}/accept`, { method: 'POST' });
       receiveTrip(trip);
+      const takenByOther = trip.members.some((member) => member.personId === joiningAs?.id && member.userId !== user.id);
+      if (joiningAs && trip.people.some((person) => person.id === joiningAs.id) && !takenByOther) {
+        apply(trip.id, { type: 'member/claim', userId: user.id, personId: joiningAs.id });
+      }
       navigate(`/trips/${trip.id}`, { replace: true });
     } catch (err) {
       toast({ message: (err as Error).message, tone: 'error' });
@@ -59,6 +65,11 @@ export function JoinPage() {
             .filter(Boolean)
             .join(' · ')}
         </p>
+        {joiningAs && (
+          <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            You'll join as <span className="font-semibold">{joiningAs.name}</span>, so expenses for you show up here.
+          </p>
+        )}
         <Button size="lg" className="mt-6 w-full" onClick={join} disabled={joining}>
           {joining && <LoaderCircle className="size-4 animate-spin" />}
           Join event

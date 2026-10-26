@@ -5,7 +5,8 @@ import { readStored, REMINDER_PROMPT_KEY, writeStored } from '../lib/storage';
 import { useReminders } from '../state/reminders';
 import { Button } from './ui';
 
-export function ReminderPrompt() {
+/** `reminders`: the event is on or coming up. `alerts`: it's shared, so others can add expenses for you. */
+export function ReminderPrompt({ reminders, alerts }: { reminders: boolean; alerts: boolean }) {
   const { status, turnOn } = useReminders();
   const [dismissed, setDismissed] = useState(() => readStored<boolean>(REMINDER_PROMPT_KEY) === true);
   if ((status !== 'off' && status !== 'unsupported') || dismissed) return null;
@@ -14,14 +15,18 @@ export function ReminderPrompt() {
     <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white py-3 pl-4 pr-2">
       <BellRing className="size-5 shrink-0 text-emerald-700" />
       <p className="min-w-0 flex-1 text-sm text-zinc-600">
-        Get a reminder at {reminderTimesLabel} to log expenses while this event is on.
+        {alerts && reminders
+          ? `Get notified when someone adds an expense for you, plus reminders at ${reminderTimesLabel} while this event is on.`
+          : alerts
+            ? 'Get notified when someone adds an expense for you.'
+            : `Get a reminder at ${reminderTimesLabel} to log expenses while this event is on.`}
       </p>
       <Button size="sm" onClick={() => void turnOn()}>
         Turn on
       </Button>
       <button
         type="button"
-        aria-label="Dismiss reminder suggestion"
+        aria-label="Dismiss notification suggestion"
         onClick={() => {
           writeStored(REMINDER_PROMPT_KEY, true);
           setDismissed(true);

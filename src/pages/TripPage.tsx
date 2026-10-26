@@ -66,7 +66,7 @@ export function TripPage() {
 }
 
 function TripView({ trip }: { trip: Trip }) {
-  const { user, syncStatus, pendingCount, apply, removeTrip, refreshTrip } = useTrips();
+  const { user, syncStatus, pendingCount, apply, removeTrip, refreshTrip, runAction } = useTrips();
   const savedPeople = useSavedPeople();
   const newPerson = useNewPerson();
   const navigate = useNavigate();
@@ -201,9 +201,27 @@ function TripView({ trip }: { trip: Trip }) {
       setSheet({ kind: 'person', person: payee, focusUpi: true });
       return;
     }
-    const text = `Hi ${nameOf(transfer.fromId)}! Please pay ${formatMoney(transfer.amount, trip.currency)} for ${trip.name}.\nPay with UPI: ${payPageUrl(window.location.origin, payment)}`;
+    await shareMessage(
+      `Hi ${nameOf(transfer.fromId)}! Please pay ${formatMoney(transfer.amount, trip.currency)} for ${trip.name}.\nPay with UPI: ${payPageUrl(window.location.origin, payment)}`,
+    );
+  };
+
+  const shareMessage = async (text: string) => {
     const shared = canNativeShare() && (await nativeShare({ text }));
     if (!shared) window.open(whatsappUrl(text), '_blank', 'noopener');
+  };
+
+  const linkPerson = async (person: Person) => {
+    const message = (token: string) =>
+      `Hi ${person.name}! Join “${trip.name}” on Expense Manager as ${person.name}, so expenses for you show up in your app: ${window.location.origin}/join/${token}?as=${person.id}`;
+    if (trip.inviteToken) return shareMessage(message(trip.inviteToken));
+    try {
+      const { inviteToken } = await runAction(trip.id, '/invite', 'POST');
+      // Phones only open the share sheet from a fresh tap, and the wait for the new link used this one up.
+      if (inviteToken) toast({ message: `Link for ${person.name} is ready`, action: { label: 'Share', run: () => void shareMessage(message(inviteToken)) } });
+    } catch (err) {
+      toast({ message: (err as Error).message, tone: 'error' });
+    }
   };
 
   const showQr = (person: Person) => {
@@ -233,6 +251,7 @@ function TripView({ trip }: { trip: Trip }) {
       onShowQr={showQr}
       onRemoveSettlement={removeSettlement}
       onEditPerson={(person) => setSheet({ kind: 'person', person })}
+      onLinkPerson={(person) => void linkPerson(person)}
       onAddPerson={(name) => apply(trip.id, { type: 'person/add', person: newPerson(name) })}
     />
   );
@@ -254,7 +273,8 @@ function TripView({ trip }: { trip: Trip }) {
   const panels: Record<Tab, ReactNode> = { expenses: expensesPanel, balances: balancesPanel, insights: insightsPanel, people: peoplePanel };
   const upiTransfer = sheet?.kind === 'upi' ? sheet.transfer : undefined;
 
-  const reminderPrompt = (timing.kind === 'upcoming' || timing.kind === 'ongoing') && <ReminderPrompt />;
+  const remindersApply = timing.kind === 'upcoming' || timing.kind === 'ongoing';
+  const reminderPrompt = (remindersApply || isShared) && <ReminderPrompt reminders={remindersApply} alerts={isShared} />;
 
   const claimPrompt = me && me.personId === undefined && trip.people.length > 0 && (
     <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">

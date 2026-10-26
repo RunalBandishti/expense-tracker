@@ -32,19 +32,19 @@ export function reminderSlot(timeZone: string, now: Date): ReminderSlot | null {
   return { date: `${parts.year}-${parts.month}-${parts.day}`, hour: reminder.hour, message: reminder.message };
 }
 
-export type ReminderNotification = { title: string; body: string; url: string; tag: string };
+export type PushNotification = { title: string; body: string; url: string; tag: string };
 
 /** Shared by every reminder so a new one replaces the last instead of piling up. */
 const NOTIFICATION_TAG = 'expense-reminder';
 
-export const testNotification: ReminderNotification = {
-  title: '🔔 Reminders are on',
-  body: `You'll get one at ${reminderTimesLabel} on each day of an event.`,
+export const testNotification: PushNotification = {
+  title: '🔔 Notifications are on',
+  body: `You'll get reminders at ${reminderTimesLabel} on event days, and a note when someone adds an expense for you.`,
   url: '/',
   tag: NOTIFICATION_TAG,
 };
 
-export function reminderNotification(trips: Trip[], slot: ReminderSlot): ReminderNotification | null {
+export function reminderNotification(trips: Trip[], slot: ReminderSlot): PushNotification | null {
   const events = trips.filter((trip) => trip.startDate && trip.endDate && trip.startDate <= slot.date && slot.date <= trip.endDate);
   if (events.length === 0) return null;
   if (events.length === 1) {

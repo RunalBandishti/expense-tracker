@@ -80,6 +80,7 @@ export type TripDetails = Pick<Trip, 'name' | 'emoji' | 'startDate' | 'endDate' 
 export type InvitePreview = Pick<Trip, 'name' | 'emoji' | 'startDate' | 'endDate'> & {
   tripId: string;
   memberCount: number;
+  people: Pick<Person, 'id' | 'name'>[];
   ownerName: string;
   alreadyMember: boolean;
 };
