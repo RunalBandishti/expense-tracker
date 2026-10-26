@@ -17,14 +17,14 @@ function Sidebar() {
   return (
     <aside className="sticky top-0 flex h-dvh flex-col border-r border-zinc-200/80 bg-paper-dim">
       <Link to="/" className="flex items-center gap-3 px-5 pt-6">
-        <Logo />
+        <Logo className="sticker-sm size-9" />
         <span>
           <span className="block font-semibold leading-tight tracking-tight">Expense Manager</span>
           <span className="block text-xs text-zinc-500">Expenses, budgets & splits</span>
         </span>
       </Link>
       <div className="px-5 pt-6">
-        <Button className="w-full" onClick={() => setCreating(true)}>
+        <Button className="sticker-button w-full" onClick={() => setCreating(true)}>
           <Plus className="size-4" />
           New event
         </Button>

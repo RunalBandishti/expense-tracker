@@ -15,12 +15,13 @@ import { BudgetPanel } from '../components/trip/BudgetPanel';
 import { ExpensesPanel } from '../components/trip/ExpensesPanel';
 import { InsightsPanel } from '../components/trip/InsightsPanel';
 import { PeoplePanel } from '../components/trip/PeoplePanel';
-import { Button, EmptyState, Menu, PageLoader, SegmentedControl, SyncBadge } from '../components/ui';
+import { Button, cx, EmptyState, Menu, PageLoader, SegmentedControl, SyncBadge } from '../components/ui';
 import { formatDateRange, pluralize, todayISO, tripTiming } from '../lib/dates';
 import { newId } from '../lib/id';
 import { formatMoney } from '../lib/money';
 import { canNativeShare, nativeShare, whatsappUrl } from '../lib/share';
 import { findPersonByName, peopleLabel, summarizeTrip, type Transfer } from '../lib/split';
+import { tripTint } from '../lib/tints';
 import type { CategoryDef, Expense, Person, Settlement, Trip } from '../lib/types';
 import { payPageUrl, personPayment, type UpiPayment } from '../lib/upi';
 import { useIsDesktop } from '../lib/useMediaQuery';
@@ -290,7 +291,7 @@ function TripView({ trip }: { trip: Trip }) {
             <span className="hidden sm:inline">Export PDF</span>
           </Button>
           {isDesktop && (
-            <Button size="sm" onClick={() => setSheet({ kind: 'expense' })}>
+            <Button className="sticker-button" size="sm" onClick={() => setSheet({ kind: 'expense' })}>
               <Plus className="size-3.5" />
               Add expense
             </Button>
@@ -313,7 +314,12 @@ function TripView({ trip }: { trip: Trip }) {
       </div>
 
       <header className="mt-5 flex items-center gap-3.5">
-        <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white text-3xl shadow-sm ring-1 ring-zinc-200">
+        <span
+          className={cx(
+            'sticker grid size-14 shrink-0 place-items-center rounded-2xl text-3xl',
+            tripTint(trip.id).card,
+          )}
+        >
           {trip.emoji}
         </span>
         <div className="min-w-0">
@@ -365,7 +371,7 @@ function TripView({ trip }: { trip: Trip }) {
           type="button"
           aria-label="Add expense"
           onClick={() => setSheet({ kind: 'expense' })}
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] right-5 z-20 grid size-14 place-items-center rounded-full bg-zinc-900 text-white shadow-xl shadow-black/25 transition active:scale-95"
+          className="sticker-button fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] right-5 z-20 grid size-14 place-items-center rounded-full bg-amber-300 text-ink transition hover:rotate-90 active:scale-95"
         >
           <Plus className="size-6" />
         </button>

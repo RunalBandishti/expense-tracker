@@ -69,7 +69,7 @@ export function ExpensesPanel({ trip, onAdd, onOpen, onDelete }: Props) {
           >
             {formatDayHeader(date)}
           </SectionLabel>
-          <ul className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          <ul className="sticker-sm divide-y divide-zinc-100 overflow-hidden rounded-2xl bg-white">
             {expenses.map((expense) => {
               const content = (
                 <>

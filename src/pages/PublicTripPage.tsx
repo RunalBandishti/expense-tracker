@@ -6,11 +6,12 @@ import { BudgetPanel } from '../components/trip/BudgetPanel';
 import { ExpensesPanel } from '../components/trip/ExpensesPanel';
 import { InsightsPanel } from '../components/trip/InsightsPanel';
 import { PeoplePanel } from '../components/trip/PeoplePanel';
-import { EmptyState, Logo, PageLoader, SegmentedControl } from '../components/ui';
+import { cx, EmptyState, Logo, PageLoader, SegmentedControl } from '../components/ui';
 import { UpiPaySheet } from '../components/UpiPay';
 import { api } from '../lib/api';
 import { formatDateRange, pluralize, tripTiming } from '../lib/dates';
 import { peopleLabel, summarizeTrip } from '../lib/split';
+import { tripTint } from '../lib/tints';
 import type { Trip } from '../lib/types';
 import { personPayment, transferPayment, type UpiPayment } from '../lib/upi';
 
@@ -71,17 +72,17 @@ export function PublicTripPage() {
     <div className="mx-auto max-w-3xl px-5 pb-16 pt-[calc(env(safe-area-inset-top)+1.25rem)]">
       <div className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-sm font-semibold">
-          <Logo className="size-7" />
+          <Logo className="sticker-sm size-7" />
           Expense Manager
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 px-2.5 py-1 text-xs font-medium text-zinc-600">
+        <span className="sticker-sm inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-zinc-600">
           <Eye className="size-3.5" />
           Live view
         </span>
       </div>
 
       <header className="mt-6 flex items-center gap-3.5">
-        <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white text-3xl shadow-sm ring-1 ring-zinc-200">
+        <span className={cx('sticker grid size-14 shrink-0 place-items-center rounded-2xl text-3xl', tripTint(trip.id).card)}>
           {trip.emoji}
         </span>
         <div className="min-w-0">

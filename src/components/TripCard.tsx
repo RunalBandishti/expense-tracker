@@ -2,19 +2,24 @@ import { Link } from 'react-router';
 import { formatDateRange, pluralize, tripTiming, type TripTiming } from '../lib/dates';
 import { formatMoney } from '../lib/money';
 import { peopleLabel, summarizeTrip } from '../lib/split';
+import { tripTint } from '../lib/tints';
 import type { Trip } from '../lib/types';
 import { useTrips } from '../state/trips';
-import { cx, ProgressBar } from './ui';
+import { AvatarStack, cx, ProgressBar } from './ui';
 
 function statusFor(timing: TripTiming, overBudget: boolean) {
-  if (overBudget) return { label: 'Over budget', className: 'text-red-600' };
+  if (overBudget) return { label: 'Over budget 🐯', chip: 'bg-red-50 text-red-700', live: false };
   switch (timing.kind) {
     case 'ongoing':
-      return { label: `Day ${timing.day} of ${timing.totalDays}`, className: 'text-emerald-700' };
+      return { label: `Day ${timing.day} ✨`, chip: 'bg-emerald-100 text-emerald-800', live: true };
     case 'upcoming':
-      return { label: timing.startsIn === 1 ? 'Tomorrow' : `In ${timing.startsIn} days`, className: 'text-zinc-500' };
+      return {
+        label: timing.startsIn === 1 ? 'Tomorrow ⏳' : `In ${timing.startsIn} days ⏳`,
+        chip: 'bg-sky-100 text-sky-800',
+        live: false,
+      };
     case 'past':
-      return { label: 'Completed', className: 'text-zinc-400' };
+      return { label: 'Completed ✓', chip: 'bg-zinc-100 text-zinc-600', live: false };
     default:
       return null;
   }
@@ -30,21 +35,25 @@ export function TripCard({ trip, compact = false, active = false }: { trip: Trip
   const myPersonId = trip.members.find((member) => member.userId === user.id)?.personId;
   const myBalance = summary.paidTotal > 0 ? summary.people.find((entry) => entry.person.id === myPersonId)?.balance : undefined;
   const meta = [dates, peopleLabel(trip.people.length), trip.members.length > 1 && 'Shared'].filter(Boolean).join(' · ');
+  const tint = tripTint(trip.id);
 
   return (
     <Link
       to={`/trips/${trip.id}`}
       aria-current={active ? 'page' : undefined}
+      data-compact={compact || undefined}
       className={cx(
-        'block rounded-2xl border bg-white transition hover:-translate-y-px hover:shadow-md hover:shadow-black/5',
+        'character-card relative block overflow-hidden rounded-2xl outline-none',
+        tint.card,
         compact ? 'p-3' : 'p-4',
-        active ? 'border-zinc-900 ring-1 ring-zinc-900' : 'border-zinc-200 shadow-[0_1px_2px_rgba(0,0,0,.04)]',
+        active && 'ring-2 ring-zinc-900 ring-offset-2 ring-offset-paper',
       )}
     >
+      <span aria-hidden className={cx('absolute inset-y-0 left-0 w-1.5', tint.stripe)} />
       <div className="flex items-center gap-3">
         <span
           className={cx(
-            'grid shrink-0 place-items-center rounded-xl bg-zinc-100',
+            'sticker-sm grid shrink-0 place-items-center rounded-xl bg-white',
             compact ? 'size-9 text-lg' : 'size-11 text-xl',
           )}
         >
@@ -55,8 +64,13 @@ export function TripCard({ trip, compact = false, active = false }: { trip: Trip
           <p className="truncate text-xs text-zinc-500">{meta}</p>
         </div>
         {status && !compact && (
-          <span className={cx('flex shrink-0 items-center gap-1.5 text-[11px] font-medium', status.className)}>
-            <span className="size-1.5 rounded-full bg-current" />
+          <span
+            className={cx(
+              'sticker-sm flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold min-[380px]:text-[11px]',
+              status.chip,
+            )}
+          >
+            {status.live && <span className="status-pulse-dot size-1.5 rounded-full bg-current" />}
             {status.label}
           </span>
         )}
@@ -69,16 +83,40 @@ export function TripCard({ trip, compact = false, active = false }: { trip: Trip
           {ratio !== null ? `${Math.round(ratio * 100)}% of ${money(trip.budget!)}` : pluralize(trip.expenses.length, 'expense')}
         </p>
       </div>
-      {ratio !== null && <ProgressBar ratio={ratio} className={cx('h-1.5', compact ? 'mt-2' : 'mt-2.5')} />}
-      {myBalance !== undefined && (
-        <p
-          className={cx(
-            'mt-2.5 text-xs font-medium tabular-nums',
-            myBalance > 0 ? 'text-emerald-700' : myBalance < 0 ? 'text-red-600' : 'text-zinc-500',
+      {ratio !== null && <ProgressBar ratio={ratio} className={compact ? 'mt-2' : 'mt-2.5'} />}
+      {compact ? (
+        myBalance !== undefined && (
+          <p
+            className={cx(
+              'mt-2.5 text-xs font-medium tabular-nums',
+              myBalance > 0 ? 'text-emerald-700' : myBalance < 0 ? 'text-red-600' : 'text-zinc-500',
+            )}
+          >
+            {myBalance > 0 ? `You get back ${money(myBalance)}` : myBalance < 0 ? `You owe ${money(-myBalance)}` : "You're settled up"}
+          </p>
+        )
+      ) : (
+        <div className="mt-2.5 flex items-center justify-between gap-2">
+          {myBalance !== undefined ? (
+            myBalance === 0 ? (
+              <span className="sticker-sm inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
+                🏆 Settled up
+              </span>
+            ) : (
+              <span
+                className={cx(
+                  'sticker-sm inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums',
+                  myBalance > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-700',
+                )}
+              >
+                {myBalance > 0 ? `You get back ${money(myBalance)} 🤑` : `You owe ${money(-myBalance)} 😬`}
+              </span>
+            )
+          ) : (
+            <span />
           )}
-        >
-          {myBalance > 0 ? `You get back ${money(myBalance)}` : myBalance < 0 ? `You owe ${money(-myBalance)}` : "You're settled up"}
-        </p>
+          <AvatarStack people={trip.people} />
+        </div>
       )}
     </Link>
   );

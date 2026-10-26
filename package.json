@@ -12,6 +12,7 @@
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/caveat": "^5.3.0",
     "@netlify/blobs": "^11.1.6",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.9",

@@ -74,12 +74,15 @@ export function BalancesPanel({
             Set <span className="font-medium text-zinc-700">Paid by</span> on expenses to see who owes whom.
           </p>
         ) : summary.transfers.length === 0 ? (
-          <p className="flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-4 py-5 text-sm font-medium text-emerald-700">
+          <p className="settled-banner sticker-sm flex items-center justify-center gap-2 rounded-2xl bg-emerald-50 px-4 py-5 text-sm font-semibold text-emerald-700">
+            <span className="settled-tada" aria-hidden>
+              🎉
+            </span>
             <CircleCheck className="size-5" />
             Everyone's settled up
           </p>
         ) : (
-          <ul className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          <ul className="sticker-sm divide-y divide-zinc-100 overflow-hidden rounded-2xl bg-white">
             {summary.transfers.map((transfer) => {
               const from = personOf(transfer.fromId);
               const to = personOf(transfer.toId);
@@ -101,7 +104,7 @@ export function BalancesPanel({
                   </div>
                   <div className="ml-auto flex shrink-0 items-center gap-1.5">
                     {onPay && canPay && (
-                      <Button size="sm" onClick={() => onPay(transfer)}>
+                      <Button className="sticker-button" size="sm" onClick={() => onPay(transfer)}>
                         Pay
                       </Button>
                     )}
@@ -129,7 +132,7 @@ export function BalancesPanel({
           {showUncategorizedNote && (
             <p className="mb-3 px-1 text-xs text-zinc-500">Payments made from Settle up aren't tied to a category, so only the totals above include them.</p>
           )}
-          <ul className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          <ul className="sticker-sm divide-y divide-zinc-100 overflow-hidden rounded-2xl bg-white">
             {byCategory.map(({ category, summary: categorySummary, owed }) => (
               <li key={category.id} className="px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -176,7 +179,7 @@ export function BalancesPanel({
         {trip.people.length === 0 && (
           <p className="mb-3 px-1 text-sm text-zinc-500">Add the people in this event to split expenses between them.</p>
         )}
-        <ul className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+        <ul className="sticker-sm divide-y divide-zinc-100 overflow-hidden rounded-2xl bg-white">
           {summary.people.map(({ person, personal, shared, total, paid, balance, items }) => {
             const isOpen = expandedId === person.id;
             const detail = hasPayers
@@ -327,7 +330,7 @@ export function BalancesPanel({
       {trip.settlements.length > 0 && (
         <section aria-label="Payments">
           <SectionLabel>Payments</SectionLabel>
-          <ul className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+          <ul className="sticker-sm divide-y divide-zinc-100 overflow-hidden rounded-2xl bg-white">
             {[...trip.settlements]
               .sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt)
               .map((settlement) => (

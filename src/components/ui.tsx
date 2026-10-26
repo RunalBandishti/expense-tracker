@@ -69,13 +69,38 @@ function toneFor(id: string) {
   return AVATAR_TONES[Math.abs(hash) % AVATAR_TONES.length];
 }
 
-export function Avatar({ person, size = 'md' }: { person: Person; size?: keyof typeof AVATAR_SIZES }) {
+export function Avatar({
+  person,
+  size = 'md',
+  className,
+}: {
+  person: Person;
+  size?: keyof typeof AVATAR_SIZES;
+  className?: string;
+}) {
   return (
     <span
       aria-hidden
-      className={cx('grid shrink-0 place-items-center rounded-full font-semibold', AVATAR_SIZES[size], toneFor(person.id))}
+      className={cx('grid shrink-0 place-items-center rounded-full font-semibold', AVATAR_SIZES[size], toneFor(person.id), className)}
     >
       {person.name.trim().charAt(0).toUpperCase() || '?'}
+    </span>
+  );
+}
+
+export function AvatarStack({ people, max = 4 }: { people: Person[]; max?: number }) {
+  const shown = people.slice(0, max);
+  const extra = people.length - shown.length;
+  return (
+    <span className="flex shrink-0 -space-x-1.5">
+      {shown.map((person) => (
+        <Avatar key={person.id} person={person} size="xs" className="ring-2 ring-white" />
+      ))}
+      {extra > 0 && (
+        <span className="grid size-6 place-items-center rounded-full bg-zinc-200 text-[10px] font-semibold text-zinc-600 ring-2 ring-white">
+          +{extra}
+        </span>
+      )}
     </span>
   );
 }
@@ -88,13 +113,21 @@ export function CommonAvatar({ size = 'md' }: { size?: keyof typeof AVATAR_SIZES
   );
 }
 
-export function ProgressBar({ ratio, className = 'h-1.5' }: { ratio: number; className?: string }) {
-  const tone = ratio > 1 ? 'bg-red-500' : ratio >= 0.85 ? 'bg-amber-500' : 'bg-emerald-600';
+export function ProgressBar({ ratio, className }: { ratio: number; className?: string }) {
+  const tone =
+    ratio > 1 ? 'from-red-500 to-rose-400' : ratio >= 0.85 ? 'from-amber-500 to-orange-400' : 'from-emerald-600 to-teal-400';
+  const percentage = Math.round(Math.min(Math.max(ratio, 0), 1) * 100);
   return (
-    <div className={cx('overflow-hidden rounded-full bg-zinc-200/80', className)}>
+    <div
+      role="progressbar"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={percentage}
+      className={cx('h-2.5 overflow-hidden rounded-full border-2 border-zinc-900 bg-white', className)}
+    >
       <div
-        className={cx('h-full rounded-full transition-[width] duration-500', tone)}
-        style={{ width: `${Math.min(ratio, 1) * 100}%` }}
+        className={cx('progress-grow h-full rounded-full bg-gradient-to-r transition-[width] duration-500', tone)}
+        style={{ width: `${percentage}%` }}
       />
     </div>
   );
@@ -296,7 +329,7 @@ export function SegmentedControl<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div role="tablist" className="flex overflow-x-auto rounded-xl bg-zinc-200/70 p-1 text-[13px] font-medium min-[375px]:text-sm">
+    <div role="tablist" className="segment-sticker flex overflow-x-auto rounded-xl bg-zinc-200/70 p-1 text-[13px] font-medium min-[375px]:text-sm">
       {options.map((option) => (
         <button
           key={option.value}
@@ -432,10 +465,14 @@ export function SectionLabel({ children, aside }: { children: ReactNode; aside?:
   );
 }
 
-export function EmptyState({ emoji, title, body, action }: { emoji: string; title: string; body: string; action?: ReactNode }) {
+export function EmptyState({ emoji, art, title, body, action }: { emoji?: string; art?: ReactNode; title: string; body: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center rounded-3xl border border-dashed border-zinc-300 bg-white/60 px-6 py-12 text-center">
-      <span className="grid size-14 place-items-center rounded-2xl bg-white text-3xl shadow-sm ring-1 ring-zinc-200">{emoji}</span>
+    <div className="empty-character flex flex-col items-center rounded-3xl border-2 border-dashed border-zinc-400 bg-white/70 px-6 py-12 text-center">
+      {art ?? (
+        <span className="emoji-bob grid size-14 place-items-center rounded-2xl bg-white text-3xl shadow-sm ring-1 ring-zinc-200">
+          {emoji}
+        </span>
+      )}
       <h3 className="mt-4 text-base font-semibold">{title}</h3>
       <p className="mt-1 max-w-xs text-sm text-zinc-500">{body}</p>
       {action && <div className="mt-5">{action}</div>}

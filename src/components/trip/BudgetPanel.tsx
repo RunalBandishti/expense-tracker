@@ -9,8 +9,10 @@ type Props = { trip: Trip; total: number; timing: TripTiming; onSetBudget?: () =
 export function BudgetPanel({ trip, total, timing, onSetBudget }: Props) {
   const money = (minor: number) => formatMoney(minor, trip.currency);
   const { budget } = trip;
-  const remaining = budget === null ? null : budget - total;
-  const perDay = perDayStat(budget, total, timing);
+  const hasBudget = budget !== null && budget > 0;
+  const remaining = hasBudget ? budget - total : null;
+  const budgetRatio = hasBudget ? total / budget : null;
+  const perDay = perDayStat(hasBudget ? budget : null, total, timing);
   const timingValue =
     timing.kind === 'ongoing'
       ? `Day ${timing.day} / ${timing.totalDays}`
@@ -26,20 +28,20 @@ export function BudgetPanel({ trip, total, timing, onSetBudget }: Props) {
     remaining === null
       ? { label: 'Expenses', value: String(trip.expenses.length) }
       : {
-          label: remaining >= 0 ? 'Remaining' : 'Over budget',
-          value: money(Math.abs(remaining)),
-          tone: remaining < 0 ? 'text-red-600' : undefined,
-        },
+        label: remaining >= 0 ? 'Remaining' : 'Over budget',
+        value: money(Math.abs(remaining)),
+        tone: remaining < 0 ? 'text-red-600' : undefined,
+      },
   ];
   if (perDay) stats.push({ label: perDay.label, value: money(perDay.amount) });
   if (timingValue) stats.push({ label: timing.kind === 'upcoming' ? 'Starts' : 'Progress', value: timingValue });
 
   return (
-    <section aria-label="Budget">
+    <section aria-label="Budget" className="character-panel rounded-3xl bg-white p-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">Spent</p>
       <div className="flex flex-wrap items-baseline gap-x-2">
         <p className="text-[40px] font-semibold leading-tight tracking-tight tabular-nums">{money(total)}</p>
-        {budget !== null ? (
+        {hasBudget ? (
           <p className="text-sm tabular-nums text-zinc-500">/ {money(budget)}</p>
         ) : (
           onSetBudget && (
@@ -49,7 +51,18 @@ export function BudgetPanel({ trip, total, timing, onSetBudget }: Props) {
           )
         )}
       </div>
-      {budget !== null && <ProgressBar ratio={total / budget} className="mt-2 h-2.5" />}
+      {budgetRatio !== null && <ProgressBar ratio={budgetRatio} className="mt-2 h-2.5" />}
+      {budgetRatio !== null && budgetRatio > 1 && remaining !== null && (
+        <div className="mt-4 flex items-center gap-3 rounded-2xl border-2 border-red-300 bg-red-50 px-3 py-2.5 text-red-700">
+          <span className="mascot-float text-2xl" aria-hidden>
+            🐯
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">Easy, tiger — {Math.round(budgetRatio * 100)}% of budget</p>
+            <p className="truncate text-xs">You’re {money(Math.abs(remaining))} over.</p>
+          </div>
+        </div>
+      )}
       <div
         className={cx(
           'mt-4 grid divide-x divide-zinc-200 rounded-2xl border border-zinc-200 bg-white py-3 text-center',
