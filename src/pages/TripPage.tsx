@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ChevronLeft, Ellipsis, FileDown, LoaderCircle, LogOut, Pencil, Plus, Share2, Tags, Trash, UserRound } from 'lucide-react';
 import { CategoriesSheet } from '../components/CategoriesSheet';
@@ -14,6 +14,7 @@ import { BalancesPanel } from '../components/trip/BalancesPanel';
 import { BudgetPanel } from '../components/trip/BudgetPanel';
 import { ExpensesPanel } from '../components/trip/ExpensesPanel';
 import { InsightsPanel } from '../components/trip/InsightsPanel';
+import { PeoplePanel } from '../components/trip/PeoplePanel';
 import { Button, EmptyState, Menu, PageLoader, SegmentedControl, SyncBadge } from '../components/ui';
 import { formatDateRange, pluralize, todayISO, tripTiming } from '../lib/dates';
 import { newId } from '../lib/id';
@@ -28,7 +29,7 @@ import { useNewPerson, useSavedPeople, useTrips } from '../state/trips';
 
 const LIVE_REFRESH_MS = 15_000;
 
-type Tab = 'expenses' | 'balances' | 'insights';
+type Tab = 'expenses' | 'balances' | 'insights' | 'people';
 
 type OpenSheet =
   | { kind: 'expense'; expense?: Expense }
@@ -245,8 +246,11 @@ function TripView({ trip }: { trip: Trip }) {
   const insightsPanel = (
     <InsightsPanel trip={trip} onManageCategories={() => setSheet({ kind: 'categories' })} onSettleCategory={settleCategory} />
   );
+  const peoplePanel = <PeoplePanel trip={trip} summary={summary} myPersonId={me?.personId} />;
   const expenseCount = trip.expenses.length ? `Expenses (${trip.expenses.length})` : 'Expenses';
-  const desktopTab = tab === 'insights' ? 'insights' : 'expenses';
+  const desktopTab = tab === 'insights' || tab === 'people' ? tab : 'expenses';
+  const peopleTab = { value: 'people' as const, label: 'Per person' };
+  const panels: Record<Tab, ReactNode> = { expenses: expensesPanel, balances: balancesPanel, insights: insightsPanel, people: peoplePanel };
   const upiTransfer = sheet?.kind === 'upi' ? sheet.transfer : undefined;
 
   const reminderPrompt = (timing.kind === 'upcoming' || timing.kind === 'ongoing') && <ReminderPrompt />;
@@ -331,12 +335,9 @@ function TripView({ trip }: { trip: Trip }) {
               <SegmentedControl
                 value={desktopTab}
                 onChange={setTab}
-                options={[
-                  { value: 'expenses', label: expenseCount },
-                  { value: 'insights', label: 'Insights' },
-                ]}
+                options={[{ value: 'expenses', label: expenseCount }, { value: 'insights', label: 'Insights' }, peopleTab]}
               />
-              {desktopTab === 'insights' ? insightsPanel : expensesPanel}
+              {panels[desktopTab]}
             </div>
           </div>
         </div>
@@ -352,9 +353,10 @@ function TripView({ trip }: { trip: Trip }) {
               { value: 'expenses', label: expenseCount },
               { value: 'balances', label: 'Balances' },
               { value: 'insights', label: 'Insights' },
+              peopleTab,
             ]}
           />
-          {tab === 'expenses' ? expensesPanel : tab === 'balances' ? balancesPanel : insightsPanel}
+          {panels[tab]}
         </div>
       )}
 

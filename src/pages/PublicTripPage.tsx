@@ -5,6 +5,7 @@ import { BalancesPanel } from '../components/trip/BalancesPanel';
 import { BudgetPanel } from '../components/trip/BudgetPanel';
 import { ExpensesPanel } from '../components/trip/ExpensesPanel';
 import { InsightsPanel } from '../components/trip/InsightsPanel';
+import { PeoplePanel } from '../components/trip/PeoplePanel';
 import { EmptyState, Logo, PageLoader, SegmentedControl } from '../components/ui';
 import { UpiPaySheet } from '../components/UpiPay';
 import { api } from '../lib/api';
@@ -15,7 +16,7 @@ import { personPayment, transferPayment, type UpiPayment } from '../lib/upi';
 
 const PUBLIC_REFRESH_MS = 30_000;
 
-type Tab = 'expenses' | 'balances' | 'insights';
+type Tab = 'expenses' | 'balances' | 'insights' | 'people';
 
 export function PublicTripPage() {
   const { token } = useParams();
@@ -98,6 +99,7 @@ export function PublicTripPage() {
             { value: 'balances', label: 'Balances' },
             { value: 'expenses', label: `Expenses (${trip.expenses.length})` },
             { value: 'insights', label: 'Insights' },
+            { value: 'people', label: 'Per person' },
           ]}
         />
         {tab === 'balances' ? (
@@ -109,8 +111,10 @@ export function PublicTripPage() {
           />
         ) : tab === 'expenses' ? (
           <ExpensesPanel trip={trip} />
-        ) : (
+        ) : tab === 'insights' ? (
           <InsightsPanel trip={trip} />
+        ) : (
+          <PeoplePanel trip={trip} summary={summary} />
         )}
       </div>
 

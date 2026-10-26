@@ -296,7 +296,7 @@ export function SegmentedControl<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div role="tablist" className="flex rounded-xl bg-zinc-200/70 p-1 text-sm font-medium">
+    <div role="tablist" className="flex overflow-x-auto rounded-xl bg-zinc-200/70 p-1 text-[13px] font-medium min-[375px]:text-sm">
       {options.map((option) => (
         <button
           key={option.value}
@@ -304,7 +304,7 @@ export function SegmentedControl<T extends string>({
           role="tab"
           aria-selected={option.value === value}
           onClick={() => onChange(option.value)}
-          className={cx('flex-1 rounded-lg py-1.5 transition', segmentClass(option.value === value))}
+          className={cx('flex-auto whitespace-nowrap rounded-lg px-1.5 py-1.5 transition', segmentClass(option.value === value))}
         >
           {option.label}
         </button>
