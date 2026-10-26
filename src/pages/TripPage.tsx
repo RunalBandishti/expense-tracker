@@ -20,7 +20,7 @@ import { newId } from '../lib/id';
 import { formatMoney } from '../lib/money';
 import { canNativeShare, nativeShare, whatsappUrl } from '../lib/share';
 import { findPersonByName, peopleLabel, summarizeTrip, type Transfer } from '../lib/split';
-import type { Expense, Person, Trip } from '../lib/types';
+import type { CategoryDef, Expense, Person, Settlement, Trip } from '../lib/types';
 import { payPageUrl, personPayment, type UpiPayment } from '../lib/upi';
 import { useIsDesktop } from '../lib/useMediaQuery';
 import { useToast } from '../state/toast';
@@ -146,12 +146,32 @@ function TripView({ trip }: { trip: Trip }) {
 
   const nameOf = (id: string) => trip.people.find((person) => person.id === id)?.name ?? '';
 
+  const paymentFor = (transfer: Transfer, details: Pick<Settlement, 'method' | 'category'>): Settlement => ({
+    ...transfer,
+    ...details,
+    id: newId(),
+    date: todayISO(),
+    createdAt: Date.now(),
+  });
+
   const markPaidByUpi = (transfer: Transfer) => {
-    const settlement = { ...transfer, id: newId(), date: todayISO(), method: 'upi' as const, createdAt: Date.now() };
+    const settlement = paymentFor(transfer, { method: 'upi' });
     apply(trip.id, { type: 'settlement/add', settlement });
     toast({
       message: `Recorded ${formatMoney(transfer.amount, trip.currency)} UPI payment to ${nameOf(transfer.toId)}`,
       action: { label: 'Undo', run: () => apply(trip.id, { type: 'settlement/remove', id: settlement.id }) },
+    });
+  };
+
+  const settleCategory = (category: CategoryDef, transfers: Transfer[]) => {
+    const settlements = transfers.map((transfer) => paymentFor(transfer, { category: category.id }));
+    apply(trip.id, ...settlements.map((settlement) => ({ type: 'settlement/add' as const, settlement })));
+    toast({
+      message: `Settled ${category.label}: ${pluralize(settlements.length, 'payment')} recorded`,
+      action: {
+        label: 'Undo',
+        run: () => apply(trip.id, ...settlements.map((settlement) => ({ type: 'settlement/remove' as const, id: settlement.id }))),
+      },
     });
   };
 
@@ -205,6 +225,7 @@ function TripView({ trip }: { trip: Trip }) {
       summary={summary}
       myPersonId={me?.personId}
       onSettle={(transfer) => setSheet({ kind: 'settle', transfer })}
+      onSettleCategory={settleCategory}
       onPay={openPay}
       onRequest={(transfer) => void requestPayment(transfer)}
       onShowQr={showQr}

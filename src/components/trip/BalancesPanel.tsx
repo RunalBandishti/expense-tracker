@@ -1,18 +1,20 @@
-import { useState } from 'react';
-import { ArrowRight, ChevronDown, CircleCheck, Pencil, QrCode, TriangleAlert, X } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowRight, ChevronDown, CircleCheck, Ellipsis, HandCoins, Pencil, QrCode, TriangleAlert, X } from 'lucide-react';
+import { categoryOf } from '../../lib/categories';
 import { formatShortDate, pluralize } from '../../lib/dates';
 import { formatMoney } from '../../lib/money';
-import { findPersonByName, isReservedName, type Transfer, type TripSummary } from '../../lib/split';
-import { COMMON, type Person, type Trip } from '../../lib/types';
+import { categorySummaries, findPersonByName, isReservedName, type Transfer, type TripSummary } from '../../lib/split';
+import { COMMON, type CategoryDef, type Person, type Trip } from '../../lib/types';
 import { supportsUpi } from '../../lib/upi';
 import { SavedPeopleSuggestions } from '../SavedPeopleSuggestions';
-import { Avatar, Button, cx, SectionLabel } from '../ui';
+import { Avatar, Button, CategoryTile, cx, Menu, SectionLabel } from '../ui';
 
 type Props = {
   trip: Trip;
   summary: TripSummary;
   myPersonId?: string | null;
   onSettle?: (transfer: Transfer) => void;
+  onSettleCategory?: (category: CategoryDef, transfers: Transfer[]) => void;
   onPay?: (transfer: Transfer) => void;
   onRequest?: (transfer: Transfer) => void;
   onShowQr?: (person: Person) => void;
@@ -26,6 +28,7 @@ export function BalancesPanel({
   summary,
   myPersonId,
   onSettle,
+  onSettleCategory,
   onPay,
   onRequest,
   onShowQr,
@@ -42,6 +45,10 @@ export function BalancesPanel({
   const hasPayers = summary.paidTotal > 0;
   const upiEnabled = supportsUpi(trip);
   const canAddUpi = !!onEditPerson;
+  const byCategory = useMemo(() => categorySummaries(trip), [trip]);
+  // Settling up overall can leave category debts that were netted across categories; nothing is owed then.
+  const everyoneSettled = summary.transfers.length === 0;
+  const hasUncategorizedPayments = trip.settlements.some((settlement) => !settlement.category);
 
   const trimmed = newName.trim();
   const nameTaken = isReservedName(trimmed) || !!findPersonByName(trip.people, trimmed);
@@ -275,6 +282,63 @@ export function BalancesPanel({
         )}
       </section>
 
+      {byCategory.length > 0 && (
+        <section aria-label="By category">
+          <SectionLabel>By category</SectionLabel>
+          {hasUncategorizedPayments && !everyoneSettled && (
+            <p className="mb-3 px-1 text-xs text-zinc-500">Payments made from Settle up aren't tied to a category, so only the totals above include them.</p>
+          )}
+          <ul className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+            {byCategory.map(({ category, summary: categorySummary }) => {
+              const transfers = everyoneSettled ? [] : categorySummary.transfers;
+              return (
+                <li key={category.id} className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <CategoryTile emoji={category.emoji} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[15px] font-medium">{category.label}</p>
+                      <p className="text-xs tabular-nums text-zinc-500">{money(categorySummary.total)} spent</p>
+                    </div>
+                    {onSettleCategory && transfers.length > 0 && (
+                      <Menu
+                        label={`Options for ${category.label}`}
+                        items={[
+                          {
+                            label: 'Settle bill',
+                            icon: <HandCoins className="size-4" />,
+                            onSelect: () => onSettleCategory(category, transfers),
+                          },
+                        ]}
+                        triggerClassName="-mr-2 grid size-9 shrink-0 place-items-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                      >
+                        <Ellipsis className="size-4" />
+                      </Menu>
+                    )}
+                  </div>
+                  {transfers.length === 0 ? (
+                    <p className="mt-2 flex items-center gap-1.5 text-sm font-medium text-emerald-700">
+                      <CircleCheck className="size-4" />
+                      Settled
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-1">
+                      {transfers.map((transfer) => (
+                        <li key={`${transfer.fromId}-${transfer.toId}`} className="flex items-center justify-between gap-3 text-sm">
+                          <span className="min-w-0 truncate text-zinc-600">
+                            {nameOf(transfer.fromId, true)} {transfer.fromId === myPersonId ? 'pay' : 'pays'} {nameOf(transfer.toId)}
+                          </span>
+                          <span className="font-semibold tabular-nums">{money(transfer.amount)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       {trip.settlements.length > 0 && (
         <section aria-label="Payments">
           <SectionLabel>Payments</SectionLabel>
@@ -290,6 +354,7 @@ export function BalancesPanel({
                     <p className="text-xs text-zinc-500">
                       {formatShortDate(settlement.date)}
                       {settlement.method === 'upi' && ' · UPI'}
+                      {settlement.category && ` · ${categoryOf(trip, settlement.category).label}`}
                     </p>
                   </div>
                   <p className="text-[15px] font-semibold tabular-nums">{money(settlement.amount)}</p>

@@ -1,3 +1,4 @@
+import { categoryIdOf, tripCategories } from './categories';
 import { pluralize, type TripTiming } from './dates';
 import { formatMoney } from './money';
 import { COMMON, type Expense, type Person, type Split, type Trip } from './types';
@@ -117,7 +118,8 @@ function suggestTransfers(people: PersonSummary[]): Transfer[] {
   return transfers;
 }
 
-export function summarizeTrip(trip: Trip): TripSummary {
+/** With a category, only that category's expenses and the payments recorded for it count. */
+export function summarizeTrip(trip: Trip, categoryId?: string): TripSummary {
   const byPerson = new Map<string, PersonSummary>(
     trip.people.map((person) => [person.id, { person, personal: 0, shared: 0, total: 0, paid: 0, balance: 0, items: [] }]),
   );
@@ -128,6 +130,7 @@ export function summarizeTrip(trip: Trip): TripSummary {
   let paidTotal = 0;
 
   for (const expense of trip.expenses) {
+    if (categoryId && categoryIdOf(trip, expense.category) !== categoryId) continue;
     const isShared = expense.forId === COMMON;
     const shares = expenseShares(expense, trip.people);
     const assigned = [...shares.values()].reduce((sum, share) => sum + share, 0);
@@ -154,6 +157,7 @@ export function summarizeTrip(trip: Trip): TripSummary {
   }
 
   for (const settlement of trip.settlements) {
+    if (categoryId && (!settlement.category || categoryIdOf(trip, settlement.category) !== categoryId)) continue;
     const from = byPerson.get(settlement.fromId);
     const to = byPerson.get(settlement.toId);
     if (!from || !to) continue;
@@ -172,6 +176,13 @@ export function summarizeTrip(trip: Trip): TripSummary {
     people,
     transfers: suggestTransfers(people),
   };
+}
+
+/** Categories that have paid expenses, in the event's category order. */
+export function categorySummaries(trip: Trip) {
+  return tripCategories(trip)
+    .map((category) => ({ category, summary: summarizeTrip(trip, category.id) }))
+    .filter(({ summary }) => summary.paidTotal > 0);
 }
 
 export function perDayStat(budget: number | null, spent: number, timing: TripTiming) {

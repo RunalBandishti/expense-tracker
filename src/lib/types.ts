@@ -37,6 +37,8 @@ export type Settlement = {
   amount: number;
   date: string;
   method?: 'upi' | 'cash';
+  /** Set when recorded by settling one category's bill; such payments only settle that category. */
+  category?: string;
   createdAt: number;
 };
 

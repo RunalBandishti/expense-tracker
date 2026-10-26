@@ -73,6 +73,7 @@ const isSettlement = (value: unknown) =>
   isAmount(value.amount) &&
   isDate(value.date) &&
   (value.method === undefined || value.method === 'upi' || value.method === 'cash') &&
+  (value.category === undefined || isId(value.category)) &&
   typeof value.createdAt === 'number';
 
 const DETAIL_CHECKS: Record<keyof TripDetails, (value: unknown) => boolean> = {
