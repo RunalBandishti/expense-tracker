@@ -242,7 +242,9 @@ function TripView({ trip }: { trip: Trip }) {
       onDelete={deleteExpense}
     />
   );
-  const insightsPanel = <InsightsPanel trip={trip} onManageCategories={() => setSheet({ kind: 'categories' })} />;
+  const insightsPanel = (
+    <InsightsPanel trip={trip} onManageCategories={() => setSheet({ kind: 'categories' })} onSettleCategory={settleCategory} />
+  );
   const expenseCount = trip.expenses.length ? `Expenses (${trip.expenses.length})` : 'Expenses';
   const desktopTab = tab === 'insights' ? 'insights' : 'expenses';
   const upiTransfer = sheet?.kind === 'upi' ? sheet.transfer : undefined;

@@ -178,10 +178,15 @@ export function summarizeTrip(trip: Trip, categoryId?: string): TripSummary {
   };
 }
 
-/** Categories that have paid expenses, in the event's category order. */
-export function categorySummaries(trip: Trip) {
+/** Categories that have paid expenses, in the event's category order, with the payments still owed in each. */
+export function categorySummaries(trip: Trip, overall = summarizeTrip(trip)) {
+  // Settling up overall can leave category debts that were netted across categories; nothing is owed then.
+  const everyoneSettled = overall.transfers.length === 0;
   return tripCategories(trip)
-    .map((category) => ({ category, summary: summarizeTrip(trip, category.id) }))
+    .map((category) => {
+      const summary = summarizeTrip(trip, category.id);
+      return { category, summary, owed: everyoneSettled ? [] : summary.transfers };
+    })
     .filter(({ summary }) => summary.paidTotal > 0);
 }
 

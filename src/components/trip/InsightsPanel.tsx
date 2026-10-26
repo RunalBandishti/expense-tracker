@@ -1,8 +1,10 @@
 import { barColor, categoryIdOf, tripCategories } from '../../lib/categories';
 import { addDays, daysBetween, formatShortDate, parseISODate } from '../../lib/dates';
 import { formatMoney } from '../../lib/money';
-import type { Trip } from '../../lib/types';
+import { categorySummaries, type Transfer } from '../../lib/split';
+import type { CategoryDef, Trip } from '../../lib/types';
 import { cx, EmptyState, SectionLabel } from '../ui';
+import { SettleCategoryMenu } from './SettleCategoryMenu';
 
 const MAX_CHART_DAYS = 62;
 
@@ -15,7 +17,13 @@ function chartDays(trip: Trip) {
   return [...new Set(expenseDates)].sort();
 }
 
-export function InsightsPanel({ trip, onManageCategories }: { trip: Trip; onManageCategories?: () => void }) {
+type Props = {
+  trip: Trip;
+  onManageCategories?: () => void;
+  onSettleCategory?: (category: CategoryDef, owed: Transfer[]) => void;
+};
+
+export function InsightsPanel({ trip, onManageCategories, onSettleCategory }: Props) {
   if (trip.expenses.length === 0) {
     return <EmptyState emoji="📊" title="No spending yet" body="Charts appear here once you add expenses." />;
   }
@@ -32,6 +40,7 @@ export function InsightsPanel({ trip, onManageCategories }: { trip: Trip; onMana
     }))
     .filter((category) => category.amount > 0)
     .sort((a, b) => b.amount - a.amount);
+  const owedByCategory = new Map(onSettleCategory ? categorySummaries(trip).map(({ category, owed }) => [category.id, owed]) : []);
 
   const days = chartDays(trip).map((date) => ({
     date,
@@ -59,15 +68,21 @@ export function InsightsPanel({ trip, onManageCategories }: { trip: Trip; onMana
         <ul className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4">
           {byCategory.map((category) => {
             const share = category.amount / total;
+            const owed = owedByCategory.get(category.id) ?? [];
             return (
               <li key={category.id}>
                 <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="flex items-center gap-2 font-medium">
+                  <span className="flex min-w-0 items-center gap-2 font-medium">
                     <span aria-hidden>{category.emoji}</span>
-                    {category.label}
+                    <span className="truncate">{category.label}</span>
                   </span>
-                  <span className="tabular-nums text-zinc-500">
-                    <span className="font-semibold text-zinc-900">{money(category.amount)}</span> · {Math.round(share * 100)}%
+                  <span className="flex shrink-0 items-center gap-1 tabular-nums text-zinc-500">
+                    <span>
+                      <span className="font-semibold text-zinc-900">{money(category.amount)}</span> · {Math.round(share * 100)}%
+                    </span>
+                    {onSettleCategory && owed.length > 0 && (
+                      <SettleCategoryMenu category={category} owed={owed} onSettle={onSettleCategory} compact />
+                    )}
                   </span>
                 </div>
                 <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-zinc-100">
