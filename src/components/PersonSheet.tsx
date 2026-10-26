@@ -7,17 +7,19 @@ import { MY_UPI_KEY, writeStored } from '../lib/storage';
 import type { Person, Trip } from '../lib/types';
 import { isValidUpiId, supportsUpi } from '../lib/upi';
 import { useToast } from '../state/toast';
-import { useTrips } from '../state/trips';
+import { useSavedPeople, useTrips } from '../state/trips';
 import { Avatar, Button, FieldError, FormRow, rowInputClass, Sheet } from './ui';
 
 type Props = { trip: Trip; person: Person; focusUpi?: boolean; onClose: () => void };
 
 export function PersonSheet({ trip, person, focusUpi = false, onClose }: Props) {
   const { user, apply } = useTrips();
+  const savedPeople = useSavedPeople();
   const toast = useToast();
   const formId = useId();
+  const savedUpiId = person.upiId ? undefined : findPersonByName(savedPeople, person.name)?.upiId;
   const [name, setName] = useState(person.name);
-  const [upiId, setUpiId] = useState(person.upiId ?? '');
+  const [upiId, setUpiId] = useState(person.upiId ?? savedUpiId ?? '');
   const [submitted, setSubmitted] = useState(false);
 
   const uses = countUsesOfPerson(trip, person.id);
@@ -31,11 +33,14 @@ export function PersonSheet({ trip, person, focusUpi = false, onClose }: Props) 
       ? 'That name is already used in this event'
       : null;
   const upiError = trimmedUpi && !isValidUpiId(trimmedUpi) ? 'Enter a UPI ID like name@okaxis' : null;
-  const upiHint = !focusUpi
-    ? 'Lets others pay with Google Pay, PhonePe or Paytm in one tap.'
-    : isMe
-      ? 'Add your UPI ID so friends can pay you with one tap.'
-      : `Add ${person.name}'s UPI ID to pay them with one tap.`;
+  const upiHint =
+    savedUpiId && trimmedUpi === savedUpiId
+      ? 'Filled in from your other events. Save to use it here.'
+      : !focusUpi
+        ? 'Lets others pay with Google Pay, PhonePe or Paytm in one tap.'
+        : isMe
+          ? 'Add your UPI ID so friends can pay you with one tap.'
+          : `Add ${person.name}'s UPI ID to pay them with one tap.`;
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();

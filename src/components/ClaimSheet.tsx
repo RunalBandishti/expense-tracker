@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { Check } from 'lucide-react';
-import { newId } from '../lib/id';
 import type { Op } from '../lib/ops';
 import { findPersonByName, isReservedName } from '../lib/split';
 import { MY_UPI_KEY, readStored, writeStored } from '../lib/storage';
 import type { Trip } from '../lib/types';
 import { isValidUpiId, supportsUpi } from '../lib/upi';
-import { useTrips } from '../state/trips';
+import { useNewPerson, useTrips } from '../state/trips';
 import { Avatar, Button, cx, FieldError, SectionLabel, Sheet } from './ui';
 
 export function ClaimSheet({ trip, onClose }: { trip: Trip; onClose: () => void }) {
   const { user, apply } = useTrips();
+  const newPerson = useNewPerson();
   const myPersonId = trip.members.find((member) => member.userId === user.id)?.personId;
   const myPerson = trip.people.find((person) => person.id === myPersonId);
   const [name, setName] = useState(user.username);
@@ -39,7 +39,7 @@ export function ClaimSheet({ trip, onClose }: { trip: Trip; onClose: () => void 
     if (!trimmed || isReservedName(trimmed)) return;
     const existing = findPersonByName(trip.people, trimmed);
     if (existing) return claim(existing.id);
-    const person = { id: newId(), name: trimmed, ...(showUpi && trimmedUpi ? { upiId: trimmedUpi } : {}) };
+    const person = newPerson(trimmed, showUpi && trimmedUpi ? trimmedUpi : undefined);
     finish({ type: 'person/add', person }, { type: 'member/claim', userId: user.id, personId: person.id });
   };
 

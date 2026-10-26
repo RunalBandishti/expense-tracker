@@ -5,6 +5,7 @@ import { formatMoney } from '../../lib/money';
 import { findPersonByName, isReservedName, type Transfer, type TripSummary } from '../../lib/split';
 import { COMMON, type Person, type Trip } from '../../lib/types';
 import { supportsUpi } from '../../lib/upi';
+import { SavedPeopleSuggestions } from '../SavedPeopleSuggestions';
 import { Avatar, Button, cx, SectionLabel } from '../ui';
 
 type Props = {
@@ -132,7 +133,7 @@ export function BalancesPanel({
             const detail = hasPayers
               ? `Share ${money(total)} · Paid ${money(paid)}`
               : [personal && `Personal ${money(personal)}`, shared && `Shared ${money(shared)}`].filter(Boolean).join(' · ') ||
-                'No expenses yet';
+              'No expenses yet';
             return (
               <li key={person.id}>
                 <button
@@ -245,6 +246,16 @@ export function BalancesPanel({
             </li>
           )}
         </ul>
+        {onAddPerson && (
+          <SavedPeopleSuggestions
+            query={newName}
+            exclude={trip.people}
+            onPick={(name) => {
+              onAddPerson(name);
+              setNewName('');
+            }}
+          />
+        )}
         {nameTaken && trimmed && <p className="mt-2 px-1 text-xs text-zinc-500">“{trimmed}” is already in this event.</p>}
         {trip.expenses.length > 0 && (
           <dl className="mt-3 flex flex-wrap justify-between gap-x-4 gap-y-1 px-1 text-sm tabular-nums">

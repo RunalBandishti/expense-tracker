@@ -2,24 +2,32 @@ import { useId, useRef, useState, type KeyboardEvent } from 'react';
 import { Check, ChevronDown, Plus, Search, X } from 'lucide-react';
 import { findPersonByName, isReservedName } from '../lib/split';
 import { COMMON, type Person } from '../lib/types';
+import { useSavedPeople } from '../state/trips';
+import { matchingSavedPeople } from './SavedPeopleSuggestions';
 import { Avatar, CommonAvatar, cx } from './ui';
 
-type Option = { kind: 'common' } | { kind: 'person'; person: Person } | { kind: 'create'; name: string };
+type Option =
+  | { kind: 'common' }
+  | { kind: 'person'; person: Person }
+  | { kind: 'saved'; person: Person }
+  | { kind: 'create'; name: string };
 
-function buildOptions(people: Person[], query: string, includeCommon: boolean) {
+function buildOptions(people: Person[], query: string, includeCommon: boolean, savedPeople: Person[]) {
   const name = query.trim();
   const needle = name.toLowerCase();
   const matches = people.filter((person) => person.name.toLowerCase().includes(needle));
-  const exactMatch = isReservedName(name) || !!findPersonByName(people, name);
+  const suggestions = matchingSavedPeople(savedPeople, name, people);
+  const exactMatch = isReservedName(name) || !!findPersonByName(people, name) || !!findPersonByName(suggestions, name);
   const firstPersonIndex = includeCommon ? 1 : 0;
   const options: Option[] = [
     ...(includeCommon ? [{ kind: 'common' as const }] : []),
     ...matches.map((person) => ({ kind: 'person' as const, person })),
+    ...suggestions.map((person) => ({ kind: 'saved' as const, person })),
     ...(name && !exactMatch ? [{ kind: 'create' as const, name }] : []),
   ];
   // While typing, Enter should pick the first person match (or "create") rather than the pinned Common row.
-  const defaultIndex = needle ? (matches.length ? firstPersonIndex : options.length - 1) : 0;
-  return { options, matches, needle, defaultIndex, firstPersonIndex };
+  const defaultIndex = needle ? (matches.length || suggestions.length ? firstPersonIndex : options.length - 1) : 0;
+  return { options, matches, suggestions, needle, defaultIndex, firstPersonIndex };
 }
 
 function Highlight({ text, needle }: { text: string; needle: string }) {
@@ -63,8 +71,10 @@ export function LabelCombobox({
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
+  const savedPeople = useSavedPeople();
 
-  const { options, matches, needle, firstPersonIndex } = buildOptions(people, query, includeCommon);
+  const { options, matches, suggestions, needle, firstPersonIndex } = buildOptions(people, query, includeCommon, savedPeople);
+  const savedStart = firstPersonIndex + matches.length;
   const selectedPerson = people.find((person) => person.id === value);
   const selectedName = value === COMMON ? 'Common' : (selectedPerson?.name ?? '');
 
@@ -74,7 +84,7 @@ export function LabelCombobox({
   const openList = () => {
     setOpen(true);
     setQuery('');
-    setActiveIndex(Math.max(buildOptions(people, '', includeCommon).options.findIndex(isSelected), 0));
+    setActiveIndex(Math.max(buildOptions(people, '', includeCommon, savedPeople).options.findIndex(isSelected), 0));
   };
 
   const close = () => {
@@ -86,6 +96,7 @@ export function LabelCombobox({
     if (!option) return;
     if (option.kind === 'common') onChange(COMMON);
     else if (option.kind === 'person') onChange(option.person.id);
+    else if (option.kind === 'saved') onChange(onCreate(option.person.name));
     else onChange(onCreate(option.name));
     close();
     inputRef.current?.blur();
@@ -119,7 +130,7 @@ export function LabelCombobox({
     const active = index === activeIndex;
     return (
       <li
-        key={option.kind === 'person' ? option.person.id : option.kind}
+        key={option.kind === 'person' ? option.person.id : option.kind === 'saved' ? `saved-${option.person.name}` : option.kind}
         id={`${listId}-${index}`}
         role="option"
         aria-selected={isSelected(option)}
@@ -151,6 +162,18 @@ export function LabelCombobox({
             <p className="min-w-0 flex-1 truncate text-[15px] text-zinc-700">
               <Highlight text={option.person.name} needle={needle} />
             </p>
+          </>
+        )}
+        {option.kind === 'saved' && (
+          <>
+            <Avatar person={option.person} size="sm" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] text-zinc-700">
+                <Highlight text={option.person.name} needle={needle} />
+              </p>
+              <p className="truncate text-xs text-zinc-500">{option.person.upiId ?? 'Add to this event'}</p>
+            </div>
+            <Plus className="size-4 shrink-0 text-zinc-400" />
           </>
         )}
         {option.kind === 'create' && (
@@ -207,7 +230,7 @@ export function LabelCombobox({
           onBlur={close}
           onChange={(event) => {
             setQuery(event.target.value);
-            setActiveIndex(buildOptions(people, event.target.value, includeCommon).defaultIndex);
+            setActiveIndex(buildOptions(people, event.target.value, includeCommon, savedPeople).defaultIndex);
             if (!open) setOpen(true);
           }}
           onKeyDown={handleKeyDown}
@@ -241,7 +264,13 @@ export function LabelCombobox({
               {needle ? `No match for “${query.trim()}”` : 'No people yet. Type a name to add one.'}
             </li>
           )}
-          {options.slice(firstPersonIndex).map((option, index) => renderOption(option, index + firstPersonIndex))}
+          {options.slice(firstPersonIndex, savedStart).map((option, index) => renderOption(option, index + firstPersonIndex))}
+          {suggestions.length > 0 && (
+            <li role="presentation" className="px-2 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+              From your other events
+            </li>
+          )}
+          {options.slice(savedStart).map((option, index) => renderOption(option, index + savedStart))}
         </ul>
       )}
     </div>

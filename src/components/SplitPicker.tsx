@@ -3,6 +3,7 @@ import { Check, Minus, Plus } from 'lucide-react';
 import { amountToInput, currencySymbol, formatMoney, parseAmount, sanitizeAmountInput } from '../lib/money';
 import { allocate, expenseShares, findPersonByName, isReservedName } from '../lib/split';
 import { COMMON, type Person, type Split } from '../lib/types';
+import { SavedPeopleSuggestions } from './SavedPeopleSuggestions';
 import { Avatar, Button, cx, SegmentedControl } from './ui';
 
 type Mode = 'equal' | 'shares' | 'percent' | 'exact';
@@ -157,8 +158,8 @@ export function SplitPicker({ people, split, amount, currency, onChange, onAddPe
     onChange(ordered.length === people.length ? { mode: 'all' } : { mode: 'custom', personIds: ordered });
   };
 
-  const addPerson = () => {
-    const name = newName.trim();
+  const addPerson = (typedName = newName) => {
+    const name = typedName.trim();
     if (!name || isReservedName(name)) return;
     const existing = findPersonByName(people, name);
     const id = existing?.id ?? onAddPerson(name);
@@ -178,9 +179,9 @@ export function SplitPicker({ people, split, amount, currency, onChange, onAddPe
         ? assignedAmount === amount
           ? { ok: true, text: `All ${formatMoney(amount, currency)} assigned` }
           : {
-              ok: false,
-              text: `${formatMoney(Math.abs(amount - assignedAmount), currency)} ${assignedAmount < amount ? 'left to assign' : 'too much'}`,
-            }
+            ok: false,
+            text: `${formatMoney(Math.abs(amount - assignedAmount), currency)} ${assignedAmount < amount ? 'left to assign' : 'too much'}`,
+          }
         : null;
 
   return (
@@ -268,26 +269,29 @@ export function SplitPicker({ people, split, amount, currency, onChange, onAddPe
         })}
 
         {adding ? (
-          <div className="flex items-center gap-2 px-3 py-2">
-            <input
-              autoFocus={people.length > 0}
-              value={newName}
-              onChange={(event) => setNewName(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  addPerson();
-                }
-              }}
-              placeholder={people.length ? 'Name' : 'Add the people in this event'}
-              aria-label="New person's name"
-              autoCapitalize="words"
-              enterKeyHint="done"
-              className="h-10 min-w-0 flex-1 rounded-xl bg-zinc-100 px-3 text-base outline-none focus:ring-2 focus:ring-emerald-600/70"
-            />
-            <Button size="sm" onClick={addPerson} disabled={!newName.trim()}>
-              Add
-            </Button>
+          <div className="px-3 py-2">
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus={people.length > 0}
+                value={newName}
+                onChange={(event) => setNewName(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addPerson();
+                  }
+                }}
+                placeholder={people.length ? 'Name' : 'Add the people in this event'}
+                aria-label="New person's name"
+                autoCapitalize="words"
+                enterKeyHint="done"
+                className="h-10 min-w-0 flex-1 rounded-xl bg-zinc-100 px-3 text-base outline-none focus:ring-2 focus:ring-emerald-600/70"
+              />
+              <Button size="sm" onClick={() => addPerson()} disabled={!newName.trim()}>
+                Add
+              </Button>
+            </div>
+            <SavedPeopleSuggestions query={newName} exclude={people} onPick={addPerson} />
           </div>
         ) : (
           <button

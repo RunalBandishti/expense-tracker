@@ -19,12 +19,12 @@ import { formatDateRange, pluralize, todayISO, tripTiming } from '../lib/dates';
 import { newId } from '../lib/id';
 import { formatMoney } from '../lib/money';
 import { canNativeShare, nativeShare, whatsappUrl } from '../lib/share';
-import { peopleLabel, summarizeTrip, type Transfer } from '../lib/split';
+import { findPersonByName, peopleLabel, summarizeTrip, type Transfer } from '../lib/split';
 import type { Expense, Person, Trip } from '../lib/types';
-import { payPageUrl, personPayment, transferPayment, type UpiPayment } from '../lib/upi';
+import { payPageUrl, personPayment, type UpiPayment } from '../lib/upi';
 import { useIsDesktop } from '../lib/useMediaQuery';
 import { useToast } from '../state/toast';
-import { useTrips } from '../state/trips';
+import { useNewPerson, useSavedPeople, useTrips } from '../state/trips';
 
 const LIVE_REFRESH_MS = 15_000;
 
@@ -65,6 +65,8 @@ export function TripPage() {
 
 function TripView({ trip }: { trip: Trip }) {
   const { user, syncStatus, pendingCount, apply, removeTrip, refreshTrip } = useTrips();
+  const savedPeople = useSavedPeople();
+  const newPerson = useNewPerson();
   const navigate = useNavigate();
   const toast = useToast();
   const isDesktop = useIsDesktop();
@@ -153,17 +155,26 @@ function TripView({ trip }: { trip: Trip }) {
     });
   };
 
+  /** Copies a UPI ID saved for this name in another event onto this event's person. */
+  const adoptSavedUpi = (person: Person) => {
+    const savedUpiId = person.upiId ? undefined : findPersonByName(savedPeople, person.name)?.upiId;
+    if (!savedUpiId) return person;
+    apply(trip.id, { type: 'person/setUpi', id: person.id, upiId: savedUpiId });
+    return { ...person, upiId: savedUpiId };
+  };
+
   const openPay = (transfer: Transfer) => {
-    const payment = transferPayment(trip, transfer);
     const payee = trip.people.find((person) => person.id === transfer.toId);
+    if (!payee) return;
+    const payment = personPayment(trip, adoptSavedUpi(payee), transfer.amount);
     if (payment) setSheet({ kind: 'upi', payment, transfer });
-    else if (payee) setSheet({ kind: 'person', person: payee, focusUpi: true });
+    else setSheet({ kind: 'person', person: payee, focusUpi: true });
   };
 
   const requestPayment = async (transfer: Transfer) => {
     const payee = trip.people.find((person) => person.id === transfer.toId);
     if (!payee) return;
-    const payment = personPayment(trip, payee, transfer.amount);
+    const payment = personPayment(trip, adoptSavedUpi(payee), transfer.amount);
     if (!payment) {
       setSheet({ kind: 'person', person: payee, focusUpi: true });
       return;
@@ -199,7 +210,7 @@ function TripView({ trip }: { trip: Trip }) {
       onShowQr={showQr}
       onRemoveSettlement={removeSettlement}
       onEditPerson={(person) => setSheet({ kind: 'person', person })}
-      onAddPerson={(name) => apply(trip.id, { type: 'person/add', person: { id: newId(), name } })}
+      onAddPerson={(name) => apply(trip.id, { type: 'person/add', person: newPerson(name) })}
     />
   );
   const expensesPanel = (

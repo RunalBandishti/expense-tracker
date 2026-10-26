@@ -1,11 +1,11 @@
 import { useId, useState, type FormEvent } from 'react';
 import { X } from 'lucide-react';
 import { addDays, daysBetween, pluralize, todayISO } from '../lib/dates';
-import { newId } from '../lib/id';
 import { amountToInput, CURRENCIES, currencySymbol, parseAmount, sanitizeAmountInput } from '../lib/money';
 import { findPersonByName, isReservedName } from '../lib/split';
 import type { Person, Trip } from '../lib/types';
-import { useTrips } from '../state/trips';
+import { useNewPerson, useTrips } from '../state/trips';
+import { SavedPeopleSuggestions } from './SavedPeopleSuggestions';
 import {
   Avatar,
   Button,
@@ -25,6 +25,7 @@ type Props = { trip?: Trip; onClose: () => void; onCreated?: (trip: Trip) => voi
 
 export function TripSheet({ trip, onClose, onCreated }: Props) {
   const { createTrip, apply } = useTrips();
+  const newPerson = useNewPerson();
   const formId = useId();
   const today = todayISO();
   const [name, setName] = useState(trip?.name ?? '');
@@ -52,10 +53,10 @@ export function TripSheet({ trip, onClose, onCreated }: Props) {
   };
   const days = hasDates && startDate && endDate && endDate >= startDate ? daysBetween(startDate, endDate) + 1 : null;
 
-  const addPendingPerson = (list: Person[]) => {
-    const trimmed = personName.trim();
+  const addPendingPerson = (list: Person[], name = personName) => {
+    const trimmed = name.trim();
     if (!trimmed || isReservedName(trimmed) || findPersonByName(list, trimmed)) return list;
-    return [...list, { id: newId(), name: trimmed }];
+    return [...list, newPerson(trimmed)];
   };
 
   const handleSubmit = (event: FormEvent) => {
@@ -249,6 +250,14 @@ export function TripSheet({ trip, onClose, onCreated }: Props) {
                   Add
                 </Button>
               </div>
+              <SavedPeopleSuggestions
+                query={personName}
+                exclude={people}
+                onPick={(name) => {
+                  setPeople((list) => addPendingPerson(list, name));
+                  setPersonName('');
+                }}
+              />
             </div>
           </section>
         )}

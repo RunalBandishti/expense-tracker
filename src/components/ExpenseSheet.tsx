@@ -6,7 +6,7 @@ import { newId } from '../lib/id';
 import { amountToInput, formatMoney, parseAmount } from '../lib/money';
 import { participantIds, splitProblem } from '../lib/split';
 import { COMMON, type Expense, type Person, type Split, type Trip } from '../lib/types';
-import { useTrips } from '../state/trips';
+import { useNewPerson, useTrips } from '../state/trips';
 import { CategoryPicker } from './CategoryPicker';
 import { LabelCombobox } from './LabelCombobox';
 import { SplitPicker } from './SplitPicker';
@@ -46,6 +46,7 @@ type Props = {
 
 export function ExpenseSheet({ trip, expense, myPersonId, onDelete, onClose }: Props) {
   const { apply } = useTrips();
+  const newPerson = useNewPerson();
   const formId = useId();
   const [amountText, setAmountText] = useState(expense ? amountToInput(expense.amount) : '');
   const [title, setTitle] = useState(expense?.title ?? '');
@@ -70,7 +71,7 @@ export function ExpenseSheet({ trip, expense, myPersonId, onDelete, onClose }: P
   };
 
   const addPerson = (name: string) => {
-    const person = { id: newId(), name };
+    const person = newPerson(name);
     apply(trip.id, { type: 'person/add', person });
     return person.id;
   };

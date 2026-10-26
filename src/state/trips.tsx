@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError } from '../lib/api';
 import { DEFAULT_CATEGORIES } from '../lib/categories';
 import { tripTiming } from '../lib/dates';
 import { newId } from '../lib/id';
 import { applyOp, type Op } from '../lib/ops';
+import { findPersonByName } from '../lib/split';
 import { readStored, tripsCacheKey, USER_KEY, writeStored } from '../lib/storage';
 import type { Person, Trip, TripDetails, User } from '../lib/types';
 import { useAuth } from './auth';
@@ -43,6 +44,35 @@ export function useTrips() {
   const context = useContext(TripsContext);
   if (!context) throw new Error('useTrips must be used inside TripsProvider');
   return context;
+}
+
+/** One entry per name across all the user's events, newest event first, keeping any UPI ID known for that name. */
+export function useSavedPeople() {
+  const { trips } = useTrips();
+  return useMemo(() => {
+    const byName = new Map<string, Person>();
+    for (const trip of [...trips].sort((a, b) => b.updatedAt - a.updatedAt)) {
+      for (const person of trip.people) {
+        const key = person.name.toLowerCase();
+        const saved = byName.get(key);
+        if (!saved) byName.set(key, person);
+        else if (!saved.upiId && person.upiId) byName.set(key, { ...saved, upiId: person.upiId });
+      }
+    }
+    return [...byName.values()];
+  }, [trips]);
+}
+
+/** Makes a person for an event, reusing the UPI ID already saved for that name elsewhere. */
+export function useNewPerson() {
+  const savedPeople = useSavedPeople();
+  return useCallback(
+    (name: string, upiId?: string): Person => {
+      const knownUpiId = upiId || findPersonByName(savedPeople, name)?.upiId;
+      return { id: newId(), name, ...(knownUpiId ? { upiId: knownUpiId } : {}) };
+    },
+    [savedPeople],
+  );
 }
 
 function sortTrips(trips: Trip[]) {
