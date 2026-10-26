@@ -1,4 +1,5 @@
 import { getStore } from '@netlify/blobs';
+import { DEFAULT_CATEGORIES } from '../../src/lib/categories';
 import { applyOp } from '../../src/lib/ops';
 import type { Trip } from '../../src/lib/types';
 import type { SessionUser } from './auth';
@@ -94,6 +95,7 @@ export async function applyOps(req: Request, user: SessionUser, id: string) {
         people,
         expenses: [],
         settlements: [],
+        categories: DEFAULT_CATEGORIES,
         members: [{ userId: user.id, username: user.username, role: 'owner', joinedAt: now }],
         ownerId: user.id,
         shareToken: null,

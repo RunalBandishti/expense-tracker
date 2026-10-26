@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api, ApiError } from '../lib/api';
+import { DEFAULT_CATEGORIES } from '../lib/categories';
 import { tripTiming } from '../lib/dates';
 import { newId } from '../lib/id';
 import { applyOp, type Op } from '../lib/ops';
@@ -189,6 +190,7 @@ export function TripsProvider({ user, children }: { user: User; children: ReactN
           people,
           expenses: [],
           settlements: [],
+          categories: DEFAULT_CATEGORIES,
           members: [{ userId: user.id, username: user.username, role: 'owner', joinedAt: now }],
           ownerId: user.id,
           shareToken: null,

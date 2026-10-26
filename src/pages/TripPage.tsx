@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { ChevronLeft, Ellipsis, FileDown, LoaderCircle, LogOut, Pencil, Plus, Share2, Trash, UserRound } from 'lucide-react';
+import { ChevronLeft, Ellipsis, FileDown, LoaderCircle, LogOut, Pencil, Plus, Share2, Tags, Trash, UserRound } from 'lucide-react';
+import { CategoriesSheet } from '../components/CategoriesSheet';
 import { ClaimSheet } from '../components/ClaimSheet';
 import { ExpenseSheet } from '../components/ExpenseSheet';
 import { PersonSheet } from '../components/PersonSheet';
@@ -31,6 +32,7 @@ type OpenSheet =
   | { kind: 'settle'; transfer: Transfer }
   | { kind: 'share' }
   | { kind: 'claim' }
+  | { kind: 'categories' }
   | null;
 
 export function TripPage() {
@@ -121,6 +123,14 @@ function TripView({ trip }: { trip: Trip }) {
     toast({ message: isOwner ? `Deleted “${trip.name}”` : `Left “${trip.name}”` });
   };
 
+  const deleteExpense = (expense: Expense) => {
+    apply(trip.id, { type: 'expense/remove', id: expense.id });
+    toast({
+      message: `Deleted “${expense.title}”`,
+      action: { label: 'Undo', run: () => apply(trip.id, { type: 'expense/upsert', expense }) },
+    });
+  };
+
   const removeSettlement = (settlementId: string) => {
     const settlement = trip.settlements.find((candidate) => candidate.id === settlementId);
     if (!settlement) return;
@@ -143,9 +153,14 @@ function TripView({ trip }: { trip: Trip }) {
     />
   );
   const expensesPanel = (
-    <ExpensesPanel trip={trip} onAdd={() => setSheet({ kind: 'expense' })} onOpen={(expense) => setSheet({ kind: 'expense', expense })} />
+    <ExpensesPanel
+      trip={trip}
+      onAdd={() => setSheet({ kind: 'expense' })}
+      onOpen={(expense) => setSheet({ kind: 'expense', expense })}
+      onDelete={deleteExpense}
+    />
   );
-  const insightsPanel = <InsightsPanel trip={trip} />;
+  const insightsPanel = <InsightsPanel trip={trip} onManageCategories={() => setSheet({ kind: 'categories' })} />;
   const expenseCount = trip.expenses.length ? `Expenses (${trip.expenses.length})` : 'Expenses';
   const desktopTab = tab === 'insights' ? 'insights' : 'expenses';
 
@@ -193,6 +208,7 @@ function TripView({ trip }: { trip: Trip }) {
             label="Trip options"
             items={[
               { label: 'Edit trip', icon: <Pencil className="size-4" />, onSelect: () => setSheet({ kind: 'trip' }) },
+              { label: 'Categories', icon: <Tags className="size-4" />, onSelect: () => setSheet({ kind: 'categories' }) },
               { label: 'Who are you?', icon: <UserRound className="size-4" />, onSelect: () => setSheet({ kind: 'claim' }) },
               isOwner
                 ? { label: 'Delete trip', icon: <Trash className="size-4" />, danger: true, onSelect: handleRemove }
@@ -265,8 +281,9 @@ function TripView({ trip }: { trip: Trip }) {
       )}
 
       {sheet?.kind === 'expense' && (
-        <ExpenseSheet trip={trip} expense={sheet.expense} myPersonId={me?.personId} onClose={close} />
+        <ExpenseSheet trip={trip} expense={sheet.expense} myPersonId={me?.personId} onDelete={deleteExpense} onClose={close} />
       )}
+      {sheet?.kind === 'categories' && <CategoriesSheet trip={trip} onClose={close} />}
       {sheet?.kind === 'trip' && <TripSheet trip={trip} onClose={close} />}
       {sheet?.kind === 'person' && <PersonSheet trip={trip} person={sheet.person} onClose={close} />}
       {sheet?.kind === 'settle' && <SettlementSheet trip={trip} transfer={sheet.transfer} onClose={close} />}

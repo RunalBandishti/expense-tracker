@@ -12,7 +12,7 @@ export type Split =
   /** Minor currency units per person. */
   | { mode: 'exact'; amounts: Record<string, number> };
 
-export type Category = 'food' | 'stay' | 'transport' | 'activities' | 'shopping' | 'other';
+export type CategoryDef = { id: string; label: string; emoji: string };
 
 export type Expense = {
   id: string;
@@ -25,7 +25,8 @@ export type Expense = {
   forId: string;
   split?: Split;
   paidById?: string;
-  category?: Category;
+  /** A CategoryDef id; unknown or missing ids count as Other. */
+  category?: string;
   createdAt: number;
 };
 
@@ -59,6 +60,8 @@ export type Trip = {
   people: Person[];
   expenses: Expense[];
   settlements: Settlement[];
+  /** Missing on trips created before categories were editable; those use the defaults. */
+  categories?: CategoryDef[];
   members: Member[];
   ownerId: string;
   shareToken: string | null;

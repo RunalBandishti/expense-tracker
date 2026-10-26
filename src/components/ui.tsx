@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown, CloudOff, LoaderCircle, Users } from 'lucide-react';
-import { categoryOf } from '../lib/categories';
 import { currencySymbol, sanitizeAmountInput } from '../lib/money';
-import type { Category, Person } from '../lib/types';
+import type { Person } from '../lib/types';
+import { useToastHost } from '../state/toast';
 import type { SyncStatus } from '../state/trips';
 
 export const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ');
@@ -111,13 +112,18 @@ type SheetProps = {
 export function Sheet({ title, onClose, children, formId, submitLabel = 'Save', cancelLabel = 'Cancel' }: SheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const pressStartedOnBackdrop = useRef(false);
+  const registerToastHost = useToastHost();
 
   useEffect(() => {
     const dialog = dialogRef.current!;
     dialog.showModal();
     (dialog.querySelector<HTMLElement>('[data-autofocus]') ?? dialog).focus();
-    return () => dialog.close();
-  }, []);
+    const unregisterToastHost = registerToastHost(dialog);
+    return () => {
+      unregisterToastHost();
+      dialog.close();
+    };
+  }, [registerToastHost]);
 
   return (
     <dialog
@@ -169,6 +175,9 @@ export function Sheet({ title, onClose, children, formId, submitLabel = 'Save', 
 
 export type MenuItem = { label: string; icon?: ReactNode; onSelect: () => void; danger?: boolean };
 
+const MENU_GAP = 8;
+const MENU_FLIP_SPACE = 280;
+
 export function Menu({
   label,
   heading,
@@ -186,68 +195,89 @@ export function Menu({
   placement?: 'down' | 'up';
   triggerClassName?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<CSSProperties | null>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const open = position !== null;
 
   useEffect(() => {
     if (!open) return;
+    const close = () => setPosition(null);
     const onPointerDown = (event: PointerEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (!menuRef.current?.contains(target) && !triggerRef.current?.contains(target)) close();
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') close();
     };
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('resize', close);
+    window.addEventListener('scroll', close, true);
     return () => {
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('resize', close);
+      window.removeEventListener('scroll', close, true);
     };
   }, [open]);
 
+  const toggle = () => {
+    if (open) return setPosition(null);
+    const rect = triggerRef.current!.getBoundingClientRect();
+    const above = placement === 'up' || window.innerHeight - rect.bottom < MENU_FLIP_SPACE;
+    setPosition({
+      ...(above ? { bottom: window.innerHeight - rect.top + MENU_GAP } : { top: rect.bottom + MENU_GAP }),
+      ...(placement === 'up' ? { left: rect.left } : { right: window.innerWidth - rect.right }),
+    });
+  };
+
   return (
-    <div ref={containerRef} className="relative">
+    <>
       <button
+        ref={triggerRef}
         type="button"
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((isOpen) => !isOpen)}
+        onClick={toggle}
         className={triggerClassName}
       >
         {children}
       </button>
-      {open && (
-        <div
-          role="menu"
-          className={cx(
-            'menu-in absolute z-30 min-w-52 rounded-2xl border border-zinc-200 bg-white p-1.5 shadow-xl shadow-black/10',
-            placement === 'down' ? 'right-0 top-full mt-2' : 'bottom-full left-0 mb-2',
-          )}
-        >
-          {heading && <p className="truncate px-3 pb-1.5 pt-2 text-xs text-zinc-500">{heading}</p>}
-          {content}
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                item.onSelect();
-              }}
-              className={cx(
-                'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition',
-                item.danger ? 'text-red-600 hover:bg-red-50' : 'text-zinc-800 hover:bg-zinc-100',
-              )}
-            >
-              {item.icon}
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+      {position &&
+        // Rendered at the body so lists with overflow-hidden (rounded cards) can't clip it.
+        createPortal(
+          <div
+            ref={menuRef}
+            role="menu"
+            style={position}
+            className="menu-in fixed z-40 min-w-52 rounded-2xl border border-zinc-200 bg-white p-1.5 shadow-xl shadow-black/10"
+          >
+            {heading && <p className="truncate px-3 pb-1.5 pt-2 text-xs text-zinc-500">{heading}</p>}
+            {content}
+            {items.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setPosition(null);
+                  item.onSelect();
+                }}
+                className={cx(
+                  'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition',
+                  item.danger ? 'text-red-600 hover:bg-red-50' : 'text-zinc-800 hover:bg-zinc-100',
+                )}
+              >
+                {item.icon}
+                {item.label}
+              </button>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -419,7 +449,7 @@ export function PageLoader() {
   );
 }
 
-export function CategoryTile({ category, size = 'md' }: { category: Category | undefined; size?: 'sm' | 'md' }) {
+export function CategoryTile({ emoji, size = 'md' }: { emoji: string; size?: 'sm' | 'md' }) {
   return (
     <span
       aria-hidden
@@ -428,7 +458,7 @@ export function CategoryTile({ category, size = 'md' }: { category: Category | u
         size === 'md' ? 'size-10 text-lg' : 'size-8 text-base',
       )}
     >
-      {categoryOf(category).emoji}
+      {emoji}
     </span>
   );
 }

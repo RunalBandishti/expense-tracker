@@ -1,16 +1,16 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Trash } from 'lucide-react';
-import { CATEGORIES, guessCategory } from '../lib/categories';
+import { categoryIdOf, guessCategory, OTHER_CATEGORY, tripCategories } from '../lib/categories';
 import { todayISO, tripTiming } from '../lib/dates';
 import { newId } from '../lib/id';
 import { amountToInput, formatMoney, parseAmount } from '../lib/money';
 import { participantIds, splitProblem } from '../lib/split';
-import { COMMON, type Category, type Expense, type Person, type Split, type Trip } from '../lib/types';
-import { useToast } from '../state/toast';
+import { COMMON, type Expense, type Person, type Split, type Trip } from '../lib/types';
 import { useTrips } from '../state/trips';
+import { CategoryPicker } from './CategoryPicker';
 import { LabelCombobox } from './LabelCombobox';
 import { SplitPicker } from './SplitPicker';
-import { AmountInput, Button, cx, FieldError, FormRow, rowDateInputClass, rowInputClass, SectionLabel, Sheet } from './ui';
+import { AmountInput, Button, FieldError, FormRow, rowDateInputClass, rowInputClass, SectionLabel, Sheet } from './ui';
 
 function defaultDate(trip: Trip) {
   return tripTiming(trip.startDate, trip.endDate).kind === 'past' && trip.endDate ? trip.endDate : todayISO();
@@ -36,15 +36,20 @@ function snapshotSplit(split: Split, people: Person[]): Split {
   }
 }
 
-type Props = { trip: Trip; expense?: Expense; myPersonId?: string | null; onClose: () => void };
+type Props = {
+  trip: Trip;
+  expense?: Expense;
+  myPersonId?: string | null;
+  onDelete?: (expense: Expense) => void;
+  onClose: () => void;
+};
 
-export function ExpenseSheet({ trip, expense, myPersonId, onClose }: Props) {
+export function ExpenseSheet({ trip, expense, myPersonId, onDelete, onClose }: Props) {
   const { apply } = useTrips();
-  const toast = useToast();
   const formId = useId();
   const [amountText, setAmountText] = useState(expense ? amountToInput(expense.amount) : '');
   const [title, setTitle] = useState(expense?.title ?? '');
-  const [category, setCategory] = useState<Category | null>(expense?.category ?? null);
+  const [category, setCategory] = useState<string | null>(expense ? categoryIdOf(trip, expense.category) : null);
   const [paidById, setPaidById] = useState<string | null>(() => {
     if (expense) return expense.paidById ?? null;
     return trip.people.some((person) => person.id === myPersonId) ? (myPersonId ?? null) : null;
@@ -55,7 +60,7 @@ export function ExpenseSheet({ trip, expense, myPersonId, onClose }: Props) {
   const [submitted, setSubmitted] = useState(false);
 
   const amount = parseAmount(amountText);
-  const shownCategory = category ?? guessCategory(title) ?? 'other';
+  const shownCategory = category ?? guessCategory(title, tripCategories(trip)) ?? OTHER_CATEGORY;
   const errors = {
     amount: !amount ? 'Enter an amount' : null,
     title: !title.trim() ? 'Add a short description' : null,
@@ -90,13 +95,9 @@ export function ExpenseSheet({ trip, expense, myPersonId, onClose }: Props) {
   };
 
   const handleDelete = () => {
-    if (!expense) return;
-    apply(trip.id, { type: 'expense/remove', id: expense.id });
+    if (!expense || !onDelete) return;
     onClose();
-    toast({
-      message: 'Expense deleted',
-      action: { label: 'Undo', run: () => apply(trip.id, { type: 'expense/upsert', expense }) },
-    });
+    onDelete(expense);
   };
 
   const equalIds = split.mode === 'all' || split.mode === 'custom' ? participantIds({ amount: 0, forId: COMMON, split }, trip.people) : [];
@@ -142,26 +143,12 @@ export function ExpenseSheet({ trip, expense, myPersonId, onClose }: Props) {
 
         <section>
           <SectionLabel>Category</SectionLabel>
-          <div role="radiogroup" aria-label="Category" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
-            {CATEGORIES.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                role="radio"
-                aria-checked={shownCategory === option.id}
-                onClick={() => setCategory(option.id)}
-                className={cx(
-                  'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition',
-                  shownCategory === option.id
-                    ? 'border-zinc-900 bg-zinc-900 text-white'
-                    : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300',
-                )}
-              >
-                <span aria-hidden>{option.emoji}</span>
-                {option.label}
-              </button>
-            ))}
-          </div>
+          <CategoryPicker
+            trip={trip}
+            value={shownCategory}
+            onChange={setCategory}
+            onCreate={(created) => apply(trip.id, { type: 'category/add', category: created })}
+          />
         </section>
 
         <section>
@@ -220,7 +207,7 @@ export function ExpenseSheet({ trip, expense, myPersonId, onClose }: Props) {
           <Button type="submit" size="lg" className="w-full">
             {expense ? 'Save changes' : 'Add expense'}
           </Button>
-          {expense && (
+          {expense && onDelete && (
             <Button variant="danger" size="lg" className="w-full" onClick={handleDelete}>
               <Trash className="size-4" />
               Delete expense

@@ -1,4 +1,3 @@
-import { CATEGORY_IDS } from '../../src/lib/categories';
 import { CURRENCIES } from '../../src/lib/money';
 import type { Op } from '../../src/lib/ops';
 import { COMMON, type TripDetails } from '../../src/lib/types';
@@ -50,8 +49,16 @@ const isExpense = (value: unknown) =>
   (value.forId === COMMON || isId(value.forId)) &&
   (value.split === undefined || isSplit(value.split)) &&
   (value.paidById === undefined || isId(value.paidById)) &&
-  (value.category === undefined || CATEGORY_IDS.includes(value.category as string)) &&
+  (value.category === undefined || isId(value.category)) &&
   typeof value.createdAt === 'number';
+
+const isCategory = (value: unknown) =>
+  isObject(value) &&
+  isId(value.id) &&
+  isText(value.label, 24) &&
+  typeof value.emoji === 'string' &&
+  value.emoji.length > 0 &&
+  value.emoji.length <= 16;
 
 const isSettlement = (value: unknown) =>
   isObject(value) &&
@@ -104,6 +111,12 @@ function isValidOp(op: unknown, userId: string) {
       return isSettlement(op.settlement);
     case 'member/claim':
       return op.userId === userId && (op.personId === null || isId(op.personId));
+    case 'category/add':
+      return isCategory(op.category) && (op.index === undefined || (Number.isInteger(op.index) && (op.index as number) >= 0));
+    case 'category/update':
+      return isCategory(op.category);
+    case 'category/remove':
+      return isId(op.id) && typeof op.deleteExpenses === 'boolean';
     default:
       return false;
   }

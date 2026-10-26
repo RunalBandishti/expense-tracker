@@ -2,7 +2,7 @@ import { jsPDF } from 'jspdf';
 import { autoTable, type UserOptions } from 'jspdf-autotable';
 import interRegularUrl from '@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf?url';
 import interBoldUrl from '@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf?url';
-import { CATEGORIES, categoryOf } from './categories';
+import { categoryIdOf, categoryOf, tripCategories } from './categories';
 import { formatDateRange, formatLongDate, formatShortDate, pluralize, todayISO, tripTiming } from './dates';
 import { formatMoney } from './money';
 import { participantIds, peopleLabel, perDayStat, summarizeTrip } from './split';
@@ -257,12 +257,14 @@ export async function exportTripPdf(trip: Trip) {
     });
   }
 
-  const categoryTotals = CATEGORIES.map((category) => ({
-    label: category.label,
-    amount: trip.expenses
-      .filter((expense) => (expense.category ?? 'other') === category.id)
-      .reduce((sum, expense) => sum + expense.amount, 0),
-  })).filter((category) => category.amount > 0);
+  const categoryTotals = tripCategories(trip)
+    .map((category) => ({
+      label: category.label,
+      amount: trip.expenses
+        .filter((expense) => categoryIdOf(trip, expense.category) === category.id)
+        .reduce((sum, expense) => sum + expense.amount, 0),
+    }))
+    .filter((category) => category.amount > 0);
   sectionTitle('Spending by category');
   table({
     head: [['CATEGORY', 'AMOUNT', 'OF TOTAL']],
@@ -280,7 +282,7 @@ export async function exportTripPdf(trip: Trip) {
       .map((expense) => [
         formatShortDate(expense.date),
         expense.title,
-        categoryOf(expense.category).label,
+        categoryOf(trip, expense.category).label,
         expense.paidById ? nameOf(expense.paidById) : '—',
         splitDescription(expense),
         money(expense.amount),

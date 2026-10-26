@@ -1,4 +1,4 @@
-import { CATEGORIES } from '../../lib/categories';
+import { barColor, categoryIdOf, tripCategories } from '../../lib/categories';
 import { addDays, daysBetween, formatShortDate, parseISODate } from '../../lib/dates';
 import { formatMoney } from '../../lib/money';
 import type { Trip } from '../../lib/types';
@@ -15,19 +15,21 @@ function chartDays(trip: Trip) {
   return [...new Set(expenseDates)].sort();
 }
 
-export function InsightsPanel({ trip }: { trip: Trip }) {
+export function InsightsPanel({ trip, onManageCategories }: { trip: Trip; onManageCategories?: () => void }) {
   if (trip.expenses.length === 0) {
     return <EmptyState emoji="📊" title="No spending yet" body="Charts appear here once you add expenses." />;
   }
 
   const money = (minor: number) => formatMoney(minor, trip.currency);
   const total = trip.expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const byCategory = CATEGORIES.map((category) => ({
-    ...category,
-    amount: trip.expenses
-      .filter((expense) => (expense.category ?? 'other') === category.id)
-      .reduce((sum, expense) => sum + expense.amount, 0),
-  }))
+  const byCategory = tripCategories(trip)
+    .map((category) => ({
+      ...category,
+      bar: barColor(trip, category.id),
+      amount: trip.expenses
+        .filter((expense) => categoryIdOf(trip, expense.category) === category.id)
+        .reduce((sum, expense) => sum + expense.amount, 0),
+    }))
     .filter((category) => category.amount > 0)
     .sort((a, b) => b.amount - a.amount);
 
@@ -43,7 +45,17 @@ export function InsightsPanel({ trip }: { trip: Trip }) {
   return (
     <div className="space-y-8">
       <section aria-label="Spending by category">
-        <SectionLabel>By category</SectionLabel>
+        <SectionLabel
+          aside={
+            onManageCategories && (
+              <button type="button" onClick={onManageCategories} className="text-xs font-semibold text-emerald-700 hover:underline">
+                Manage
+              </button>
+            )
+          }
+        >
+          By category
+        </SectionLabel>
         <ul className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4">
           {byCategory.map((category) => {
             const share = category.amount / total;

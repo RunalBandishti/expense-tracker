@@ -1,5 +1,6 @@
+import { MAX_CATEGORIES, OTHER_CATEGORY, tripCategories, withCategory } from './categories';
 import { countUsesOfPerson } from './split';
-import type { Expense, Person, Settlement, Trip, TripDetails } from './types';
+import type { CategoryDef, Expense, Person, Settlement, Trip, TripDetails } from './types';
 
 /** Every op is idempotent, so a batch can safely be resent after a lost response. */
 export type Op =
@@ -12,7 +13,11 @@ export type Op =
   | { type: 'expense/remove'; id: string }
   | { type: 'settlement/add'; settlement: Settlement }
   | { type: 'settlement/remove'; id: string }
-  | { type: 'member/claim'; userId: string; personId: string | null };
+  | { type: 'member/claim'; userId: string; personId: string | null }
+  | { type: 'category/add'; category: CategoryDef; index?: number }
+  | { type: 'category/update'; category: CategoryDef }
+  /** Expenses in the category are deleted, or moved to Other. */
+  | { type: 'category/remove'; id: string; deleteExpenses: boolean };
 
 const DETAIL_KEYS = ['name', 'emoji', 'startDate', 'endDate', 'budget', 'currency'] as const;
 
@@ -61,6 +66,25 @@ export function applyOp(trip: Trip | null, op: Op): Trip | null {
       return {
         ...trip,
         members: trip.members.map((member) => (member.userId === op.userId ? { ...member, personId: op.personId } : member)),
+      };
+    case 'category/add': {
+      const categories = tripCategories(trip);
+      if (categories.some((category) => category.id === op.category.id) || categories.length >= MAX_CATEGORIES) return trip;
+      return { ...trip, categories: withCategory(categories, op.category, op.index) };
+    }
+    case 'category/update':
+      return {
+        ...trip,
+        categories: tripCategories(trip).map((category) => (category.id === op.category.id ? op.category : category)),
+      };
+    case 'category/remove':
+      if (op.id === OTHER_CATEGORY) return trip;
+      return {
+        ...trip,
+        categories: tripCategories(trip).filter((category) => category.id !== op.id),
+        expenses: op.deleteExpenses
+          ? trip.expenses.filter((expense) => expense.category !== op.id)
+          : trip.expenses.map((expense) => (expense.category === op.id ? { ...expense, category: OTHER_CATEGORY } : expense)),
       };
   }
 }

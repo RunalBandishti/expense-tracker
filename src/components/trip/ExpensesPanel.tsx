@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { Plus } from 'lucide-react';
+import { Ellipsis, Pencil, Plus, Trash } from 'lucide-react';
+import { categoryOf } from '../../lib/categories';
 import { formatDayHeader } from '../../lib/dates';
 import { formatMoney } from '../../lib/money';
 import { participantIds } from '../../lib/split';
 import { COMMON, type Expense, type Person, type Trip } from '../../lib/types';
-import { Button, CategoryTile, cx, EmptyState, SectionLabel } from '../ui';
+import { Button, CategoryTile, cx, EmptyState, Menu, SectionLabel } from '../ui';
 
 function forLabel(expense: Expense, people: Person[]) {
   if (expense.forId !== COMMON) return people.find((person) => person.id === expense.forId)?.name ?? 'Removed person';
@@ -19,9 +20,14 @@ function subtitle(expense: Expense, people: Person[]) {
   return payer ? `${forLabel(expense, people)} · ${payer.name} paid` : forLabel(expense, people);
 }
 
-type Props = { trip: Trip; onAdd?: () => void; onOpen?: (expense: Expense) => void };
+type Props = {
+  trip: Trip;
+  onAdd?: () => void;
+  onOpen?: (expense: Expense) => void;
+  onDelete?: (expense: Expense) => void;
+};
 
-export function ExpensesPanel({ trip, onAdd, onOpen }: Props) {
+export function ExpensesPanel({ trip, onAdd, onOpen, onDelete }: Props) {
   const groups = useMemo(() => {
     const sorted = [...trip.expenses].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
     const byDate = new Map<string, Expense[]>();
@@ -67,7 +73,7 @@ export function ExpensesPanel({ trip, onAdd, onOpen }: Props) {
             {expenses.map((expense) => {
               const content = (
                 <>
-                  <CategoryTile category={expense.category} />
+                  <CategoryTile emoji={categoryOf(trip, expense.category).emoji} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-medium">{expense.title}</p>
                     <p className="truncate text-xs text-zinc-500">{subtitle(expense, trip.people)}</p>
@@ -75,15 +81,27 @@ export function ExpensesPanel({ trip, onAdd, onOpen }: Props) {
                   <p className="text-[15px] font-semibold tabular-nums">{formatMoney(expense.amount, trip.currency)}</p>
                 </>
               );
-              const rowClass = 'flex w-full items-center gap-3 px-4 py-3 text-left';
+              const rowClass = cx('flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left', onDelete ? 'pr-1' : 'pr-4');
               return (
-                <li key={expense.id}>
+                <li key={expense.id} className={cx('flex items-center', onOpen && 'transition hover:bg-zinc-50')}>
                   {onOpen ? (
-                    <button type="button" onClick={() => onOpen(expense)} className={cx(rowClass, 'transition hover:bg-zinc-50')}>
+                    <button type="button" onClick={() => onOpen(expense)} className={rowClass}>
                       {content}
                     </button>
                   ) : (
                     <div className={rowClass}>{content}</div>
+                  )}
+                  {onOpen && onDelete && (
+                    <Menu
+                      label={`Options for ${expense.title}`}
+                      items={[
+                        { label: 'Edit expense', icon: <Pencil className="size-4" />, onSelect: () => onOpen(expense) },
+                        { label: 'Delete expense', icon: <Trash className="size-4" />, danger: true, onSelect: () => onDelete(expense) },
+                      ]}
+                      triggerClassName="mr-2 grid size-9 shrink-0 place-items-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                    >
+                      <Ellipsis className="size-4" />
+                    </Menu>
                   )}
                 </li>
               );
