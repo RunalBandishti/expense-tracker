@@ -4,6 +4,7 @@ import { Logo } from './components/ui';
 import { AuthPage } from './pages/AuthPage';
 import { JoinPage } from './pages/JoinPage';
 import { Layout } from './pages/Layout';
+import { PayPage } from './pages/PayPage';
 import { PublicTripPage } from './pages/PublicTripPage';
 import { TripPage } from './pages/TripPage';
 import { TripsPage } from './pages/TripsPage';
@@ -46,6 +47,7 @@ export default function App() {
         <AuthProvider>
           <Routes>
             <Route path="/s/:token" element={<PublicTripPage />} />
+            <Route path="/pay" element={<PayPage />} />
             <Route path="*" element={<AppRoutes />} />
           </Routes>
         </AuthProvider>

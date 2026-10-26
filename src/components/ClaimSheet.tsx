@@ -1,29 +1,46 @@
 import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { newId } from '../lib/id';
+import type { Op } from '../lib/ops';
 import { findPersonByName, isReservedName } from '../lib/split';
+import { MY_UPI_KEY, readStored, writeStored } from '../lib/storage';
 import type { Trip } from '../lib/types';
+import { isValidUpiId, supportsUpi } from '../lib/upi';
 import { useTrips } from '../state/trips';
-import { Avatar, Button, cx, SectionLabel, Sheet } from './ui';
+import { Avatar, Button, cx, FieldError, SectionLabel, Sheet } from './ui';
 
 export function ClaimSheet({ trip, onClose }: { trip: Trip; onClose: () => void }) {
   const { user, apply } = useTrips();
-  const [name, setName] = useState(user.username);
   const myPersonId = trip.members.find((member) => member.userId === user.id)?.personId;
+  const myPerson = trip.people.find((person) => person.id === myPersonId);
+  const [name, setName] = useState(user.username);
+  const [upiId, setUpiId] = useState(() => myPerson?.upiId ?? readStored<string>(MY_UPI_KEY) ?? '');
+  const trimmedUpi = upiId.trim();
+  const upiError = trimmedUpi && !isValidUpiId(trimmedUpi) ? 'Enter a UPI ID like name@okaxis, or leave it empty' : null;
+  const showUpi = supportsUpi(trip);
 
-  const claim = (personId: string | null) => {
-    apply(trip.id, { type: 'member/claim', userId: user.id, personId });
+  const upiOps = (personId: string): Op[] => {
+    const current = trip.people.find((person) => person.id === personId)?.upiId;
+    return showUpi && trimmedUpi && trimmedUpi !== current ? [{ type: 'person/setUpi', id: personId, upiId: trimmedUpi }] : [];
+  };
+
+  const finish = (...ops: Op[]) => {
+    if (upiError) return;
+    if (showUpi && trimmedUpi) writeStored(MY_UPI_KEY, trimmedUpi);
+    apply(trip.id, ...ops);
     onClose();
   };
+
+  const claim = (personId: string) =>
+    finish({ type: 'member/claim', userId: user.id, personId }, ...upiOps(personId));
 
   const addMe = () => {
     const trimmed = name.trim();
     if (!trimmed || isReservedName(trimmed)) return;
     const existing = findPersonByName(trip.people, trimmed);
     if (existing) return claim(existing.id);
-    const person = { id: newId(), name: trimmed };
-    apply(trip.id, { type: 'person/add', person }, { type: 'member/claim', userId: user.id, personId: person.id });
-    onClose();
+    const person = { id: newId(), name: trimmed, ...(showUpi && trimmedUpi ? { upiId: trimmedUpi } : {}) };
+    finish({ type: 'person/add', person }, { type: 'member/claim', userId: user.id, personId: person.id });
   };
 
   return (
@@ -31,6 +48,24 @@ export function ClaimSheet({ trip, onClose }: { trip: Trip; onClose: () => void 
       <p className="px-1 text-sm text-zinc-500">
         Pick your name so balances can show what you owe, and new expenses default to you as the payer.
       </p>
+      {showUpi && (
+        <section className="mt-4">
+          <SectionLabel aside={<span className="text-xs text-zinc-400">Optional · lets friends pay you</span>}>Your UPI ID</SectionLabel>
+          <input
+            value={upiId}
+            onChange={(event) => setUpiId(event.target.value)}
+            placeholder="name@okaxis"
+            aria-label="Your UPI ID"
+            inputMode="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            maxLength={100}
+            className="h-11 w-full rounded-2xl border border-zinc-200 bg-white px-4 text-base outline-none focus:ring-2 focus:ring-emerald-600/70"
+          />
+          {upiError && <FieldError>{upiError}</FieldError>}
+        </section>
+      )}
       {trip.people.length > 0 && (
         <ul className="mt-4 divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
           {trip.people.map((person) => {
@@ -74,7 +109,10 @@ export function ClaimSheet({ trip, onClose }: { trip: Trip; onClose: () => void 
       </section>
       <button
         type="button"
-        onClick={() => claim(null)}
+        onClick={() => {
+          apply(trip.id, { type: 'member/claim', userId: user.id, personId: null });
+          onClose();
+        }}
         className={cx(
           'mt-6 w-full rounded-full py-3 text-sm font-medium transition hover:bg-zinc-900/5',
           myPersonId === null ? 'text-zinc-900' : 'text-zinc-500',

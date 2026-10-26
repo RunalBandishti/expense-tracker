@@ -1,6 +1,7 @@
 import { CURRENCIES } from '../../src/lib/money';
 import type { Op } from '../../src/lib/ops';
 import { COMMON, type TripDetails } from '../../src/lib/types';
+import { UPI_ID_PATTERN } from '../../src/lib/upi';
 import { HttpError } from './http';
 
 const ID_PATTERN = /^[a-zA-Z0-9-]{1,64}$/;
@@ -38,7 +39,10 @@ function isSplit(value: unknown) {
   }
 }
 
-const isPerson = (value: unknown) => isObject(value) && isId(value.id) && isText(value.name, 40);
+const isUpiId = (value: unknown) => typeof value === 'string' && value.length <= 100 && UPI_ID_PATTERN.test(value);
+
+const isPerson = (value: unknown) =>
+  isObject(value) && isId(value.id) && isText(value.name, 40) && (value.upiId === undefined || isUpiId(value.upiId));
 
 const isExpense = (value: unknown) =>
   isObject(value) &&
@@ -68,6 +72,7 @@ const isSettlement = (value: unknown) =>
   value.fromId !== value.toId &&
   isAmount(value.amount) &&
   isDate(value.date) &&
+  (value.method === undefined || value.method === 'upi' || value.method === 'cash') &&
   typeof value.createdAt === 'number';
 
 const DETAIL_CHECKS: Record<keyof TripDetails, (value: unknown) => boolean> = {
@@ -101,6 +106,8 @@ function isValidOp(op: unknown, userId: string) {
       return isPerson(op.person);
     case 'person/update':
       return isId(op.id) && isText(op.name, 40);
+    case 'person/setUpi':
+      return isId(op.id) && (op.upiId === null || isUpiId(op.upiId));
     case 'person/remove':
     case 'expense/remove':
     case 'settlement/remove':

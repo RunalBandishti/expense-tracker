@@ -8,6 +8,7 @@ export type Op =
   | { type: 'trip/update'; details: Partial<TripDetails> }
   | { type: 'person/add'; person: Person }
   | { type: 'person/update'; id: string; name: string }
+  | { type: 'person/setUpi'; id: string; upiId: string | null }
   | { type: 'person/remove'; id: string }
   | { type: 'expense/upsert'; expense: Expense }
   | { type: 'expense/remove'; id: string }
@@ -37,6 +38,11 @@ export function applyOp(trip: Trip | null, op: Op): Trip | null {
       return trip.people.some((person) => person.id === op.person.id) ? trip : { ...trip, people: [...trip.people, op.person] };
     case 'person/update':
       return { ...trip, people: trip.people.map((person) => (person.id === op.id ? { ...person, name: op.name } : person)) };
+    case 'person/setUpi':
+      return {
+        ...trip,
+        people: trip.people.map((person) => (person.id === op.id ? { ...person, upiId: op.upiId ?? undefined } : person)),
+      };
     case 'person/remove':
       if (countUsesOfPerson(trip, op.id) > 0) return trip;
       return {

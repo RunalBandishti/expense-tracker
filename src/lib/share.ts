@@ -2,13 +2,13 @@ export const whatsappUrl = (text: string) => `https://wa.me/?text=${encodeURICom
 
 export const canNativeShare = () => typeof navigator.share === 'function';
 
-/** Opens the system share sheet; resolves false if it was dismissed or blocked. */
+/** Resolves false only when the share sheet couldn't open, so callers can fall back; a user cancel counts as handled. */
 export async function nativeShare(data: ShareData) {
   try {
     await navigator.share(data);
     return true;
-  } catch {
-    return false;
+  } catch (err) {
+    return (err as DOMException).name === 'AbortError';
   }
 }
 

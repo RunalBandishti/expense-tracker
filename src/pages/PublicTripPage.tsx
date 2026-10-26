@@ -6,10 +6,12 @@ import { BudgetPanel } from '../components/trip/BudgetPanel';
 import { ExpensesPanel } from '../components/trip/ExpensesPanel';
 import { InsightsPanel } from '../components/trip/InsightsPanel';
 import { EmptyState, Logo, PageLoader, SegmentedControl } from '../components/ui';
+import { UpiPaySheet } from '../components/UpiPay';
 import { api } from '../lib/api';
 import { formatDateRange, pluralize, tripTiming } from '../lib/dates';
 import { peopleLabel, summarizeTrip } from '../lib/split';
 import type { Trip } from '../lib/types';
+import { personPayment, transferPayment, type UpiPayment } from '../lib/upi';
 
 const PUBLIC_REFRESH_MS = 30_000;
 
@@ -20,6 +22,7 @@ export function PublicTripPage() {
   const [trip, setTrip] = useState<Trip | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>('balances');
+  const [payment, setPayment] = useState<UpiPayment | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,13 +101,20 @@ export function PublicTripPage() {
           ]}
         />
         {tab === 'balances' ? (
-          <BalancesPanel trip={trip} summary={summary} />
+          <BalancesPanel
+            trip={trip}
+            summary={summary}
+            onPay={(transfer) => setPayment(transferPayment(trip, transfer))}
+            onShowQr={(person) => setPayment(personPayment(trip, person))}
+          />
         ) : tab === 'expenses' ? (
           <ExpensesPanel trip={trip} />
         ) : (
           <InsightsPanel trip={trip} />
         )}
       </div>
+
+      {payment && <UpiPaySheet payment={payment} onClose={() => setPayment(null)} />}
 
       <p className="mt-12 text-center text-sm text-zinc-500">
         Updates automatically.{' '}

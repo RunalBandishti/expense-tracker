@@ -62,7 +62,7 @@ export function ShareSheet({ trip, onClose, onChooseIdentity }: Props) {
   const isOwner = trip.ownerId === user.id;
   const liveLink = trip.shareToken ? `${window.location.origin}/s/${trip.shareToken}` : null;
   const inviteLink = trip.inviteToken ? `${window.location.origin}/join/${trip.inviteToken}` : null;
-  const summary = tripSummaryText(trip, liveLink ?? undefined);
+  const summary = tripSummaryText(trip, { liveLink: liveLink ?? undefined, origin: window.location.origin });
   const me = trip.members.find((member) => member.userId === user.id);
   const myPerson = trip.people.find((person) => person.id === me?.personId);
 

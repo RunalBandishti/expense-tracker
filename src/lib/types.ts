@@ -2,7 +2,7 @@ export const COMMON = 'common';
 
 export type User = { id: string; username: string; provider: 'password' | 'google' };
 
-export type Person = { id: string; name: string };
+export type Person = { id: string; name: string; upiId?: string };
 
 export type Split =
   | { mode: 'all' }
@@ -36,6 +36,7 @@ export type Settlement = {
   toId: string;
   amount: number;
   date: string;
+  method?: 'upi' | 'cash';
   createdAt: number;
 };
 

@@ -1,35 +1,46 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Trash } from 'lucide-react';
 import { pluralize } from '../lib/dates';
+import type { Op } from '../lib/ops';
 import { countUsesOfPerson, findPersonByName, isReservedName } from '../lib/split';
+import { MY_UPI_KEY, writeStored } from '../lib/storage';
 import type { Person, Trip } from '../lib/types';
+import { isValidUpiId, supportsUpi } from '../lib/upi';
 import { useToast } from '../state/toast';
 import { useTrips } from '../state/trips';
 import { Avatar, Button, FieldError, FormRow, rowInputClass, Sheet } from './ui';
 
-type Props = { trip: Trip; person: Person; onClose: () => void };
+type Props = { trip: Trip; person: Person; focusUpi?: boolean; onClose: () => void };
 
-export function PersonSheet({ trip, person, onClose }: Props) {
-  const { apply } = useTrips();
+export function PersonSheet({ trip, person, focusUpi = false, onClose }: Props) {
+  const { user, apply } = useTrips();
   const toast = useToast();
   const formId = useId();
   const [name, setName] = useState(person.name);
+  const [upiId, setUpiId] = useState(person.upiId ?? '');
   const [submitted, setSubmitted] = useState(false);
 
   const uses = countUsesOfPerson(trip, person.id);
   const trimmed = name.trim();
+  const trimmedUpi = upiId.trim();
   const namesake = findPersonByName(trip.people, trimmed);
-  const error = !trimmed
+  const isMe = trip.members.some((member) => member.userId === user.id && member.personId === person.id);
+  const nameError = !trimmed
     ? 'Enter a name'
     : isReservedName(trimmed) || (namesake && namesake.id !== person.id)
       ? 'That name is already used on this trip'
       : null;
+  const upiError = trimmedUpi && !isValidUpiId(trimmedUpi) ? 'Enter a UPI ID like name@okaxis' : null;
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     setSubmitted(true);
-    if (error) return;
-    apply(trip.id, { type: 'person/update', id: person.id, name: trimmed });
+    if (nameError || upiError) return;
+    const ops: Op[] = [];
+    if (trimmed !== person.name) ops.push({ type: 'person/update', id: person.id, name: trimmed });
+    if (trimmedUpi !== (person.upiId ?? '')) ops.push({ type: 'person/setUpi', id: person.id, upiId: trimmedUpi || null });
+    if (ops.length) apply(trip.id, ...ops);
+    if (isMe && trimmedUpi) writeStored(MY_UPI_KEY, trimmedUpi);
     onClose();
   };
 
@@ -46,7 +57,7 @@ export function PersonSheet({ trip, person, onClose }: Props) {
           <Avatar person={{ ...person, name: trimmed || person.name }} size="lg" />
         </div>
         <div>
-          <div className="rounded-2xl border border-zinc-200 bg-white">
+          <div className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
             <FormRow label="Name" htmlFor={`${formId}-name`}>
               <input
                 id={`${formId}-name`}
@@ -57,8 +68,30 @@ export function PersonSheet({ trip, person, onClose }: Props) {
                 className={rowInputClass}
               />
             </FormRow>
+            {supportsUpi(trip) && (
+              <FormRow label="UPI ID" htmlFor={`${formId}-upi`}>
+                <input
+                  id={`${formId}-upi`}
+                  data-autofocus={focusUpi || undefined}
+                  value={upiId}
+                  onChange={(event) => setUpiId(event.target.value)}
+                  placeholder="name@bank (optional)"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  maxLength={100}
+                  className={rowInputClass}
+                />
+              </FormRow>
+            )}
           </div>
-          {submitted && error && <FieldError>{error}</FieldError>}
+          {submitted && (nameError || upiError) && <FieldError>{nameError ?? upiError}</FieldError>}
+          {supportsUpi(trip) && (
+            <p className="mt-2 px-1 text-xs text-zinc-500">
+              {focusUpi ? 'Add your UPI ID so friends can pay you with one tap.' : 'With a UPI ID, others get a Pay button to settle up.'}
+            </p>
+          )}
         </div>
         <Button type="submit" size="lg" className="w-full">
           Save

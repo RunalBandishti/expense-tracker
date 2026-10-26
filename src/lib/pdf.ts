@@ -244,16 +244,17 @@ export async function exportTripPdf(trip: Trip) {
   if (trip.settlements.length) {
     sectionTitle('Payments made');
     table({
-      head: [['DATE', 'FROM', 'TO', 'AMOUNT']],
+      head: [['DATE', 'FROM', 'TO', 'METHOD', 'AMOUNT']],
       body: [...trip.settlements]
         .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt)
         .map((settlement) => [
           formatShortDate(settlement.date),
           nameOf(settlement.fromId),
           nameOf(settlement.toId),
+          settlement.method === 'upi' ? 'UPI' : settlement.method === 'cash' ? 'Cash' : '—',
           money(settlement.amount),
         ]),
-      columnStyles: { 0: { cellWidth: 56, textColor: MUTED }, 3: { halign: 'right' } },
+      columnStyles: { 0: { cellWidth: 56, textColor: MUTED }, 3: { textColor: MUTED }, 4: { halign: 'right' } },
     });
   }
 

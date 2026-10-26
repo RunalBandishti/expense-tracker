@@ -1,4 +1,5 @@
 export const USER_KEY = 'em-user';
+export const MY_UPI_KEY = 'em-upi-id';
 export const tripsCacheKey = (userId: string) => `em-trips:${userId}`;
 
 // Storage throws when the browser blocks site data or is full; the app then just runs without a local copy.

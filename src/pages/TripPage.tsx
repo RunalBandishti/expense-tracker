@@ -8,15 +8,19 @@ import { PersonSheet } from '../components/PersonSheet';
 import { SettlementSheet } from '../components/SettlementSheet';
 import { ShareSheet } from '../components/ShareSheet';
 import { TripSheet } from '../components/TripSheet';
+import { UpiPaySheet } from '../components/UpiPay';
 import { BalancesPanel } from '../components/trip/BalancesPanel';
 import { BudgetPanel } from '../components/trip/BudgetPanel';
 import { ExpensesPanel } from '../components/trip/ExpensesPanel';
 import { InsightsPanel } from '../components/trip/InsightsPanel';
 import { Button, EmptyState, Menu, PageLoader, SegmentedControl, SyncBadge } from '../components/ui';
-import { formatDateRange, pluralize, tripTiming } from '../lib/dates';
+import { formatDateRange, pluralize, todayISO, tripTiming } from '../lib/dates';
 import { newId } from '../lib/id';
+import { formatMoney } from '../lib/money';
+import { canNativeShare, nativeShare, whatsappUrl } from '../lib/share';
 import { peopleLabel, summarizeTrip, type Transfer } from '../lib/split';
 import type { Expense, Person, Trip } from '../lib/types';
+import { payPageUrl, personPayment, transferPayment, type UpiPayment } from '../lib/upi';
 import { useIsDesktop } from '../lib/useMediaQuery';
 import { useToast } from '../state/toast';
 import { useTrips } from '../state/trips';
@@ -28,8 +32,9 @@ type Tab = 'expenses' | 'balances' | 'insights';
 type OpenSheet =
   | { kind: 'expense'; expense?: Expense }
   | { kind: 'trip' }
-  | { kind: 'person'; person: Person }
+  | { kind: 'person'; person: Person; focusUpi?: boolean }
   | { kind: 'settle'; transfer: Transfer }
+  | { kind: 'upi'; payment: UpiPayment; transfer?: Transfer }
   | { kind: 'share' }
   | { kind: 'claim' }
   | { kind: 'categories' }
@@ -131,6 +136,40 @@ function TripView({ trip }: { trip: Trip }) {
     });
   };
 
+  const nameOf = (id: string) => trip.people.find((person) => person.id === id)?.name ?? '';
+
+  const markPaidByUpi = (transfer: Transfer) => {
+    const settlement = { ...transfer, id: newId(), date: todayISO(), method: 'upi' as const, createdAt: Date.now() };
+    apply(trip.id, { type: 'settlement/add', settlement });
+    toast({
+      message: `Recorded ${formatMoney(transfer.amount, trip.currency)} UPI payment to ${nameOf(transfer.toId)}`,
+      action: { label: 'Undo', run: () => apply(trip.id, { type: 'settlement/remove', id: settlement.id }) },
+    });
+  };
+
+  const openPay = (transfer: Transfer) => {
+    const payment = transferPayment(trip, transfer);
+    if (payment) setSheet({ kind: 'upi', payment, transfer });
+  };
+
+  const requestPayment = async (transfer: Transfer) => {
+    const payee = trip.people.find((person) => person.id === transfer.toId);
+    if (!payee) return;
+    const payment = personPayment(trip, payee, transfer.amount);
+    if (!payment) {
+      setSheet({ kind: 'person', person: payee, focusUpi: true });
+      return;
+    }
+    const text = `Hi ${nameOf(transfer.fromId)}! Please pay ${formatMoney(transfer.amount, trip.currency)} for ${trip.name}.\nPay with UPI: ${payPageUrl(window.location.origin, payment)}`;
+    const shared = canNativeShare() && (await nativeShare({ text }));
+    if (!shared) window.open(whatsappUrl(text), '_blank', 'noopener');
+  };
+
+  const showQr = (person: Person) => {
+    const payment = personPayment(trip, person);
+    if (payment) setSheet({ kind: 'upi', payment });
+  };
+
   const removeSettlement = (settlementId: string) => {
     const settlement = trip.settlements.find((candidate) => candidate.id === settlementId);
     if (!settlement) return;
@@ -147,6 +186,9 @@ function TripView({ trip }: { trip: Trip }) {
       summary={summary}
       myPersonId={me?.personId}
       onSettle={(transfer) => setSheet({ kind: 'settle', transfer })}
+      onPay={openPay}
+      onRequest={(transfer) => void requestPayment(transfer)}
+      onShowQr={showQr}
       onRemoveSettlement={removeSettlement}
       onEditPerson={(person) => setSheet({ kind: 'person', person })}
       onAddPerson={(name) => apply(trip.id, { type: 'person/add', person: { id: newId(), name } })}
@@ -163,6 +205,7 @@ function TripView({ trip }: { trip: Trip }) {
   const insightsPanel = <InsightsPanel trip={trip} onManageCategories={() => setSheet({ kind: 'categories' })} />;
   const expenseCount = trip.expenses.length ? `Expenses (${trip.expenses.length})` : 'Expenses';
   const desktopTab = tab === 'insights' ? 'insights' : 'expenses';
+  const upiTransfer = sheet?.kind === 'upi' ? sheet.transfer : undefined;
 
   const claimPrompt = me && me.personId === undefined && trip.people.length > 0 && (
     <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
@@ -285,7 +328,14 @@ function TripView({ trip }: { trip: Trip }) {
       )}
       {sheet?.kind === 'categories' && <CategoriesSheet trip={trip} onClose={close} />}
       {sheet?.kind === 'trip' && <TripSheet trip={trip} onClose={close} />}
-      {sheet?.kind === 'person' && <PersonSheet trip={trip} person={sheet.person} onClose={close} />}
+      {sheet?.kind === 'person' && <PersonSheet trip={trip} person={sheet.person} focusUpi={sheet.focusUpi} onClose={close} />}
+      {sheet?.kind === 'upi' && (
+        <UpiPaySheet
+          payment={sheet.payment}
+          onMarkPaid={upiTransfer && (() => markPaidByUpi(upiTransfer))}
+          onClose={close}
+        />
+      )}
       {sheet?.kind === 'settle' && <SettlementSheet trip={trip} transfer={sheet.transfer} onClose={close} />}
       {sheet?.kind === 'share' && <ShareSheet trip={trip} onClose={close} onChooseIdentity={() => setSheet({ kind: 'claim' })} />}
       {sheet?.kind === 'claim' && <ClaimSheet trip={trip} onClose={close} />}

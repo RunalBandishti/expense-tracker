@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ArrowRight, ChevronDown, CircleCheck, Pencil, TriangleAlert, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, CircleCheck, Pencil, QrCode, TriangleAlert, X } from 'lucide-react';
 import { formatShortDate, pluralize } from '../../lib/dates';
 import { formatMoney } from '../../lib/money';
 import { findPersonByName, isReservedName, type Transfer, type TripSummary } from '../../lib/split';
 import { COMMON, type Person, type Trip } from '../../lib/types';
+import { supportsUpi } from '../../lib/upi';
 import { Avatar, Button, cx, SectionLabel } from '../ui';
 
 type Props = {
@@ -11,12 +12,26 @@ type Props = {
   summary: TripSummary;
   myPersonId?: string | null;
   onSettle?: (transfer: Transfer) => void;
+  onPay?: (transfer: Transfer) => void;
+  onRequest?: (transfer: Transfer) => void;
+  onShowQr?: (person: Person) => void;
   onRemoveSettlement?: (settlementId: string) => void;
   onEditPerson?: (person: Person) => void;
   onAddPerson?: (name: string) => void;
 };
 
-export function BalancesPanel({ trip, summary, myPersonId, onSettle, onRemoveSettlement, onEditPerson, onAddPerson }: Props) {
+export function BalancesPanel({
+  trip,
+  summary,
+  myPersonId,
+  onSettle,
+  onPay,
+  onRequest,
+  onShowQr,
+  onRemoveSettlement,
+  onEditPerson,
+  onAddPerson,
+}: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const money = (minor: number) => formatMoney(minor, trip.currency);
@@ -24,6 +39,7 @@ export function BalancesPanel({ trip, summary, myPersonId, onSettle, onRemoveSet
   const nameOf = (id: string, startsSentence = false) =>
     id === myPersonId ? (startsSentence ? 'You' : 'you') : (personOf(id)?.name ?? 'Removed person');
   const hasPayers = summary.paidTotal > 0;
+  const upiEnabled = supportsUpi(trip);
 
   const trimmed = newName.trim();
   const nameTaken = isReservedName(trimmed) || !!findPersonByName(trip.people, trimmed);
@@ -58,24 +74,39 @@ export function BalancesPanel({ trip, summary, myPersonId, onSettle, onRemoveSet
             {summary.transfers.map((transfer) => {
               const from = personOf(transfer.fromId);
               const to = personOf(transfer.toId);
+              // Without a known "me" (live view, or not picked yet) any viewer might be the payer.
+              const canPay = upiEnabled && !!to?.upiId && (myPersonId == null || transfer.fromId === myPersonId);
+              const canRequest = upiEnabled && transfer.toId === myPersonId;
               return (
-                <li key={`${transfer.fromId}-${transfer.toId}`} className="flex items-center gap-3 px-4 py-3">
+                <li key={`${transfer.fromId}-${transfer.toId}`} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
                   <div className="flex shrink-0 items-center gap-1">
                     {from && <Avatar person={from} size="sm" />}
                     <ArrowRight className="size-3.5 text-zinc-400" />
                     {to && <Avatar person={to} size="sm" />}
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 basis-28">
                     <p className="truncate text-[15px] font-medium">
                       {nameOf(transfer.fromId, true)} {transfer.fromId === myPersonId ? 'pay' : 'pays'} {nameOf(transfer.toId)}
                     </p>
                     <p className="text-sm font-semibold tabular-nums">{money(transfer.amount)}</p>
                   </div>
-                  {onSettle && (
-                    <Button size="sm" variant="secondary" onClick={() => onSettle(transfer)}>
-                      Settle
-                    </Button>
-                  )}
+                  <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                    {onPay && canPay && (
+                      <Button size="sm" onClick={() => onPay(transfer)}>
+                        Pay
+                      </Button>
+                    )}
+                    {onRequest && canRequest && (
+                      <Button size="sm" variant="secondary" onClick={() => onRequest(transfer)}>
+                        Request
+                      </Button>
+                    )}
+                    {onSettle && (
+                      <Button size="sm" variant="secondary" onClick={() => onSettle(transfer)}>
+                        Settle
+                      </Button>
+                    )}
+                  </div>
                 </li>
               );
             })}
@@ -153,6 +184,20 @@ export function BalancesPanel({ trip, summary, myPersonId, onSettle, onRemoveSet
                           </li>
                         ))}
                     </ul>
+                    {upiEnabled && person.upiId && (
+                      <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-white py-1.5 pl-3 pr-1.5 text-sm ring-1 ring-zinc-200">
+                        <span className="min-w-0 truncate">
+                          <span className="text-zinc-500">UPI </span>
+                          <span className="font-mono">{person.upiId}</span>
+                        </span>
+                        {onShowQr && (
+                          <Button size="sm" variant="ghost" onClick={() => onShowQr(person)}>
+                            <QrCode className="size-3.5" />
+                            QR
+                          </Button>
+                        )}
+                      </div>
+                    )}
                     {onEditPerson && (
                       <button
                         type="button"
@@ -220,7 +265,10 @@ export function BalancesPanel({ trip, summary, myPersonId, onSettle, onRemoveSet
                     <p className="truncate text-[15px]">
                       {nameOf(settlement.fromId, true)} paid {nameOf(settlement.toId)}
                     </p>
-                    <p className="text-xs text-zinc-500">{formatShortDate(settlement.date)}</p>
+                    <p className="text-xs text-zinc-500">
+                      {formatShortDate(settlement.date)}
+                      {settlement.method === 'upi' && ' · UPI'}
+                    </p>
                   </div>
                   <p className="text-[15px] font-semibold tabular-nums">{money(settlement.amount)}</p>
                   {onRemoveSettlement && (
