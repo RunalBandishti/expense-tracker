@@ -30,7 +30,7 @@ export function TripCard({ trip, compact = false, active = false }: { trip: Trip
       to={`/trips/${trip.id}`}
       aria-current={active ? 'page' : undefined}
       className={cx(
-        'block rounded-2xl border bg-white transition hover:-translate-y-px hover:shadow-md hover:shadow-zinc-900/5',
+        'block rounded-2xl border bg-white transition hover:-translate-y-px hover:shadow-md hover:shadow-black/5',
         compact ? 'p-3' : 'p-4',
         active ? 'border-zinc-900 ring-1 ring-zinc-900' : 'border-zinc-200 shadow-[0_1px_2px_rgba(0,0,0,.04)]',
       )}

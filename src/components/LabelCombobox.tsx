@@ -108,7 +108,10 @@ export function LabelCombobox({ people, value, onChange, onCreate, invalid }: Pr
         role="option"
         aria-selected={isSelected(option)}
         onMouseDown={(event) => event.preventDefault()}
-        onMouseEnter={() => setActiveIndex(index)}
+        onMouseMove={(event) => {
+          // Browsers fire zero-movement events when the list renders under a still cursor; those must not steal Enter.
+          if (event.movementX || event.movementY) setActiveIndex(index);
+        }}
         onClick={() => choose(option)}
         className={cx(
           'flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 transition-colors',

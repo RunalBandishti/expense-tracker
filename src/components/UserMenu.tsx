@@ -1,6 +1,37 @@
-import { LogOut } from 'lucide-react';
+import { LogOut, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
+import { setThemePreference, useThemePreference, type ThemePreference } from '../lib/theme';
 import { useAuth } from '../state/auth';
-import { Menu } from './ui';
+import { cx, Menu, segmentClass } from './ui';
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; Icon: LucideIcon }[] = [
+  { value: 'light', label: 'Light', Icon: Sun },
+  { value: 'dark', label: 'Dark', Icon: Moon },
+  { value: 'system', label: 'Auto', Icon: Monitor },
+];
+
+function ThemeSwitcher() {
+  const preference = useThemePreference();
+  return (
+    <div role="radiogroup" aria-label="Appearance" className="mx-1 mb-1 grid grid-cols-3 gap-1 rounded-xl bg-zinc-100 p-1">
+      {THEME_OPTIONS.map(({ value, label, Icon }) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={preference === value}
+          onClick={() => setThemePreference(value)}
+          className={cx(
+            'flex flex-col items-center gap-1 rounded-lg py-2 text-xs font-medium transition',
+            segmentClass(preference === value),
+          )}
+        >
+          <Icon className="size-4" />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function UserMenu({ placement = 'down', showName = false }: { placement?: 'down' | 'up'; showName?: boolean }) {
   const { state, logout } = useAuth();
@@ -10,6 +41,7 @@ export function UserMenu({ placement = 'down', showName = false }: { placement?:
     <Menu
       label="Account"
       heading={`Signed in as ${username}`}
+      content={<ThemeSwitcher />}
       placement={placement}
       items={[{ label: 'Log out', icon: <LogOut className="size-4" />, onSelect: () => void logout() }]}
       triggerClassName="flex min-w-0 items-center gap-2.5 rounded-full transition hover:opacity-80"

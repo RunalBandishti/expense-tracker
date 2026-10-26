@@ -168,6 +168,7 @@ export type MenuItem = { label: string; icon?: ReactNode; onSelect: () => void; 
 export function Menu({
   label,
   heading,
+  content,
   items,
   children,
   placement = 'down',
@@ -175,6 +176,7 @@ export function Menu({
 }: {
   label: string;
   heading?: string;
+  content?: ReactNode;
   items: MenuItem[];
   children: ReactNode;
   placement?: 'down' | 'up';
@@ -215,11 +217,12 @@ export function Menu({
         <div
           role="menu"
           className={cx(
-            'menu-in absolute z-30 min-w-52 rounded-2xl border border-zinc-200 bg-white p-1.5 shadow-xl shadow-zinc-900/10',
+            'menu-in absolute z-30 min-w-52 rounded-2xl border border-zinc-200 bg-white p-1.5 shadow-xl shadow-black/10',
             placement === 'down' ? 'right-0 top-full mt-2' : 'bottom-full left-0 mb-2',
           )}
         >
           {heading && <p className="truncate px-3 pb-1.5 pt-2 text-xs text-zinc-500">{heading}</p>}
+          {content}
           {items.map((item) => (
             <button
               key={item.label}
@@ -244,6 +247,9 @@ export function Menu({
   );
 }
 
+export const segmentClass = (selected: boolean) =>
+  selected ? 'bg-segment text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-800';
+
 export function SegmentedControl<T extends string>({
   value,
   options,
@@ -262,10 +268,7 @@ export function SegmentedControl<T extends string>({
           role="tab"
           aria-selected={option.value === value}
           onClick={() => onChange(option.value)}
-          className={cx(
-            'flex-1 rounded-lg py-1.5 transition',
-            option.value === value ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-800',
-          )}
+          className={cx('flex-1 rounded-lg py-1.5 transition', segmentClass(option.value === value))}
         >
           {option.label}
         </button>

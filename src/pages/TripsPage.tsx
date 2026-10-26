@@ -79,7 +79,7 @@ export function TripsPage() {
         <Button
           size="lg"
           onClick={() => setCreating(true)}
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] left-1/2 z-20 -translate-x-1/2 shadow-xl shadow-zinc-900/20"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] left-1/2 z-20 -translate-x-1/2 shadow-xl shadow-black/20"
         >
           <Plus className="size-4" />
           New trip

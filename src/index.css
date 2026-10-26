@@ -3,11 +3,68 @@
 
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --color-paper: #f6f5f1;
+  --color-paper-dim: #f1efea;
+  --color-segment: #ffffff;
+}
+
+/* Dark mode remaps the palette tokens the UI uses, so light-mode classes like bg-white and text-zinc-900 flip automatically. */
+.dark {
+  color-scheme: dark;
+  --color-paper: #0e0e10;
+  --color-paper-dim: #131316;
+  --color-segment: #3a3a41;
+  --color-white: #18181b;
+
+  --color-zinc-50: #1e1e22;
+  --color-zinc-100: #26262b;
+  --color-zinc-200: #2e2e34;
+  --color-zinc-300: #3d3d44;
+  --color-zinc-400: #77777f;
+  --color-zinc-500: #a1a1aa;
+  --color-zinc-600: #babac2;
+  --color-zinc-700: #d4d4d8;
+  --color-zinc-800: #e4e4e7;
+  --color-zinc-900: #f4f4f5;
+  --color-zinc-950: #fafafa;
+
+  --color-emerald-50: oklch(69.6% 0.17 162.48 / 0.12);
+  --color-emerald-100: oklch(69.6% 0.17 162.48 / 0.2);
+  --color-emerald-200: oklch(69.6% 0.17 162.48 / 0.32);
+  --color-emerald-600: oklch(69.6% 0.17 162.48);
+  --color-emerald-700: oklch(76.5% 0.177 163.223);
+  --color-emerald-800: oklch(84.5% 0.143 164.978);
+
+  --color-red-50: oklch(63.7% 0.237 25.331 / 0.14);
+  --color-red-300: oklch(63.7% 0.237 25.331 / 0.5);
+  --color-red-600: oklch(70.4% 0.191 22.216);
+  --color-red-700: oklch(88.5% 0.062 18.334);
+
+  --color-amber-50: oklch(76.9% 0.188 70.08 / 0.14);
+  --color-amber-100: oklch(76.9% 0.188 70.08 / 0.2);
+  --color-amber-800: oklch(92.4% 0.12 95.746);
+
+  --color-rose-100: oklch(64.5% 0.246 16.439 / 0.2);
+  --color-rose-800: oklch(89.2% 0.058 10.001);
+  --color-sky-100: oklch(68.5% 0.169 237.323 / 0.2);
+  --color-sky-800: oklch(90.1% 0.058 230.902);
+  --color-violet-100: oklch(60.6% 0.25 292.717 / 0.2);
+  --color-violet-800: oklch(89.4% 0.057 293.283);
+  --color-teal-100: oklch(70.4% 0.14 182.503 / 0.2);
+  --color-teal-800: oklch(91% 0.096 180.426);
+  --color-orange-100: oklch(70.5% 0.213 47.604 / 0.2);
+  --color-orange-800: oklch(90.1% 0.076 70.697);
+  --color-indigo-100: oklch(58.5% 0.233 277.117 / 0.2);
+  --color-indigo-800: oklch(87% 0.065 274.039);
+  --color-lime-100: oklch(76.8% 0.233 130.85 / 0.2);
+  --color-lime-800: oklch(93.8% 0.127 124.321);
+  --color-fuchsia-100: oklch(66.7% 0.295 322.15 / 0.2);
+  --color-fuchsia-800: oklch(90.3% 0.076 319.62);
 }
 
 @layer base {
   html {
-    background-color: #f6f5f1;
+    background-color: var(--color-paper);
     color: var(--color-zinc-900);
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
@@ -49,7 +106,7 @@
   padding: 0;
   border: 0;
   border-radius: 28px 28px 0 0;
-  background: #f6f5f1;
+  background: var(--color-paper);
   color: inherit;
   overflow: hidden;
   box-shadow: 0 -10px 40px rgb(0 0 0 / 0.12);
@@ -63,6 +120,10 @@
   background: rgb(24 24 27 / 0.32);
   backdrop-filter: blur(2px);
   animation: fade-in 0.2s ease-out;
+}
+
+.dark .sheet::backdrop {
+  background: rgb(0 0 0 / 0.6);
 }
 
 @media (min-width: 640px) {

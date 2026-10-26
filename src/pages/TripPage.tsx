@@ -184,7 +184,7 @@ function TripView({ trip }: { trip: Trip }) {
           type="button"
           aria-label="Add expense"
           onClick={() => setExpenseSheet({})}
-          className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] right-5 z-20 grid size-14 place-items-center rounded-full bg-zinc-900 text-white shadow-xl shadow-zinc-900/25 transition active:scale-95"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] right-5 z-20 grid size-14 place-items-center rounded-full bg-zinc-900 text-white shadow-xl shadow-black/25 transition active:scale-95"
         >
           <Plus className="size-6" />
         </button>

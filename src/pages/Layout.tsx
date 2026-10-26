@@ -15,7 +15,7 @@ function Sidebar() {
   const [creating, setCreating] = useState(false);
 
   return (
-    <aside className="sticky top-0 flex h-dvh flex-col border-r border-zinc-200/80 bg-[#F1EFEA]">
+    <aside className="sticky top-0 flex h-dvh flex-col border-r border-zinc-200/80 bg-paper-dim">
       <Link to="/" className="flex items-center gap-3 px-5 pt-6">
         <Logo />
         <span>
