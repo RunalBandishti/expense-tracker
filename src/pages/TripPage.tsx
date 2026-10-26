@@ -10,7 +10,6 @@ import {
   CommonAvatar,
   cx,
   EmptyState,
-  IconButton,
   Menu,
   PageLoader,
   ProgressBar,
@@ -112,7 +111,7 @@ function TripView({ trip }: { trip: Trip }) {
     <div className="mx-auto max-w-6xl px-5 pb-36 pt-[calc(env(safe-area-inset-top)+1rem)] lg:px-10 lg:pb-16 lg:pt-8">
       <div className="flex items-center justify-between gap-2">
         {isDesktop ? (
-          <SyncBadge status={syncStatus} />
+          <span />
         ) : (
           <Link
             to="/"
@@ -270,7 +269,7 @@ function BudgetPanel({
 function forLabel(expense: Expense, people: Person[]) {
   if (expense.forId !== COMMON) return people.find((person) => person.id === expense.forId)?.name ?? 'Removed person';
   const ids = participantIds(expense, people);
-  if (expense.split?.mode !== 'custom') return `Common · All ${ids.length}`;
+  if (ids.length > 0 && ids.length === people.length) return `Common · All ${ids.length}`;
   const names = ids.map((id) => people.find((person) => person.id === id)!.name);
   return `Common · ${names.length <= 2 ? names.join(', ') : `${names.slice(0, 2).join(', ')} +${names.length - 2}`}`;
 }
@@ -388,35 +387,29 @@ function SplitPanel({
       <ul className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
         {summary.people.map(({ person, personal, shared, total, items }) => {
           const isOpen = expandedId === person.id;
+          const breakdown = [personal && `Personal ${money(personal)}`, shared && `Shared ${money(shared)}`]
+            .filter(Boolean)
+            .join(' · ');
           return (
             <li key={person.id}>
-              <div className="flex items-center gap-1 pr-2">
-                <button
-                  type="button"
-                  aria-expanded={isOpen}
-                  onClick={() => setExpandedId(isOpen ? null : person.id)}
-                  className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 pr-1 text-left"
-                >
-                  <Avatar person={person} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-medium">{person.name}</p>
-                    <p className="truncate text-xs tabular-nums text-zinc-500">
-                      Personal {money(personal)} · Shared {money(shared)}
-                    </p>
-                  </div>
-                  <p className="text-[15px] font-semibold tabular-nums">{money(total)}</p>
-                  <ChevronDown className={cx('size-4 shrink-0 text-zinc-400 transition', isOpen && 'rotate-180')} />
-                </button>
-                <IconButton aria-label={`Edit ${person.name}`} onClick={() => onEditPerson(person)} className="size-8">
-                  <Pencil className="size-3.5" />
-                </IconButton>
-              </div>
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                onClick={() => setExpandedId(isOpen ? null : person.id)}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-zinc-50"
+              >
+                <Avatar person={person} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-medium">{person.name}</p>
+                  <p className="truncate text-xs tabular-nums text-zinc-500">{breakdown || 'No expenses yet'}</p>
+                </div>
+                <p className="text-[15px] font-semibold tabular-nums">{money(total)}</p>
+                <ChevronDown className={cx('size-4 shrink-0 text-zinc-400 transition', isOpen && 'rotate-180')} />
+              </button>
               {isOpen && (
-                <ul className="border-t border-zinc-100 bg-zinc-50/70 px-4 py-2">
-                  {items.length === 0 ? (
-                    <li className="py-1.5 text-sm text-zinc-500">No expenses yet.</li>
-                  ) : (
-                    [...items]
+                <div className="border-t border-zinc-100 bg-zinc-50/70 px-4 pb-3 pt-2">
+                  <ul>
+                    {[...items]
                       .sort((a, b) => a.expense.date.localeCompare(b.expense.date))
                       .map(({ expense, share, splitCount }) => (
                         <li key={expense.id} className="flex items-center justify-between gap-3 py-1.5 text-sm">
@@ -430,9 +423,17 @@ function SplitPanel({
                           </span>
                           <span className="tabular-nums text-zinc-600">{money(share)}</span>
                         </li>
-                      ))
-                  )}
-                </ul>
+                      ))}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => onEditPerson(person)}
+                    className="mt-1.5 inline-flex items-center gap-1.5 py-1 text-sm font-medium text-emerald-700 hover:underline"
+                  >
+                    <Pencil className="size-3.5" />
+                    Rename or remove {person.name}
+                  </button>
+                </div>
               )}
             </li>
           );

@@ -6,7 +6,7 @@ import { amountToInput, CURRENCIES, currencySymbol, parseAmount, sanitizeAmountI
 import { findPersonByName, isReservedName } from '../lib/split';
 import type { Person, Trip } from '../lib/types';
 import { useTrips } from '../state/trips';
-import { Avatar, Button, cx, FieldError, FormRow, rowInputClass, SectionLabel, Sheet } from './ui';
+import { Avatar, Button, cx, FieldError, FormRow, rowDateInputClass, rowInputClass, SectionLabel, Sheet } from './ui';
 
 const EMOJIS = ['✈️', '🏖️', '🏔️', '🏕️', '🚗', '🚆', '🛳️', '🎒', '🏨', '🍽️', '🎉', '💼'];
 
@@ -109,7 +109,7 @@ export function TripSheet({ trip, onClose, onCreated }: Props) {
                   setStartDate(event.target.value);
                   if (event.target.value && endDate < event.target.value) setEndDate(event.target.value);
                 }}
-                className={rowInputClass}
+                className={rowDateInputClass}
               />
             </FormRow>
             <FormRow label="Ends" htmlFor={`${formId}-end`}>
@@ -119,7 +119,7 @@ export function TripSheet({ trip, onClose, onCreated }: Props) {
                 value={endDate}
                 min={startDate}
                 onChange={(event) => setEndDate(event.target.value)}
-                className={rowInputClass}
+                className={rowDateInputClass}
               />
             </FormRow>
           </div>

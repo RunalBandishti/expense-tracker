@@ -313,6 +313,8 @@ export function FormRow({ label, htmlFor, children }: { label: string; htmlFor: 
 export const rowInputClass =
   'w-full min-w-0 bg-transparent text-right text-base font-medium outline-none placeholder:font-normal placeholder:text-zinc-400';
 
+export const rowDateInputClass = 'min-w-0 bg-transparent text-right text-base font-medium outline-none';
+
 export function FieldError({ children }: { children: ReactNode }) {
   return <p className="mt-2 px-1 text-sm text-red-600">{children}</p>;
 }

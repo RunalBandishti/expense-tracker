@@ -9,7 +9,7 @@ import { useToast } from '../state/toast';
 import { useTrips } from '../state/trips';
 import { LabelCombobox } from './LabelCombobox';
 import { SplitPicker } from './SplitPicker';
-import { Button, FieldError, FormRow, rowInputClass, SectionLabel, Sheet } from './ui';
+import { Button, FieldError, FormRow, rowDateInputClass, rowInputClass, SectionLabel, Sheet } from './ui';
 
 function defaultDate(trip: Trip) {
   return tripTiming(trip.startDate, trip.endDate).kind === 'past' && trip.endDate ? trip.endDate : todayISO();
@@ -48,15 +48,14 @@ export function ExpenseSheet({ trip, expense, onClose }: Props) {
     event.preventDefault();
     setSubmitted(true);
     if (Object.values(errors).some(Boolean) || !amount || !forId) return;
-    const savedSplit: Split | undefined =
-      forId !== COMMON ? undefined : split.mode === 'all' ? split : { mode: 'custom', personIds: splitIds };
     const saved: Expense = {
       id: expense?.id ?? newId(),
       title: title.trim(),
       amount,
       date,
       forId,
-      split: savedSplit,
+      // Saved as explicit people so adding someone to the trip later doesn't re-split past expenses.
+      split: forId === COMMON ? { mode: 'custom', personIds: splitIds } : undefined,
       createdAt: expense?.createdAt ?? Date.now(),
     };
     updateTrip(trip.id, (current) => ({
@@ -135,7 +134,7 @@ export function ExpenseSheet({ trip, expense, onClose }: Props) {
                 type="date"
                 value={date}
                 onChange={(event) => setDate(event.target.value)}
-                className={rowInputClass}
+                className={rowDateInputClass}
               />
             </FormRow>
           </div>

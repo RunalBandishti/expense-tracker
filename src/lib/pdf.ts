@@ -105,6 +105,11 @@ export async function exportTripPdf(trip: Trip) {
       headStyles: { fontStyle: 'bold', fontSize: 7.5, textColor: MUTED, fillColor: PAPER },
       footStyles: { fontStyle: 'bold', fillColor: PAPER },
       ...options,
+      // columnStyles only reach body cells, so mirror their alignment onto the header and total rows.
+      didParseCell: ({ section, column, cell }) => {
+        const halign = options.columnStyles?.[column.index]?.halign;
+        if (halign && section !== 'body') cell.styles.halign = halign;
+      },
     });
     y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 28;
   };
@@ -204,9 +209,9 @@ export async function exportTripPdf(trip: Trip) {
       const ids = participantIds(expense, trip.people);
       const splitText = !isShared
         ? '—'
-        : expense.split?.mode === 'custom'
-          ? ids.map(nameOf).join(', ') || 'Nobody yet'
-          : `Everyone (${ids.length})`;
+        : ids.length > 0 && ids.length === trip.people.length
+          ? `Everyone (${ids.length})`
+          : ids.map(nameOf).join(', ') || 'Nobody yet';
       return [formatShortDate(expense.date), expense.title, isShared ? 'Common' : nameOf(expense.forId), splitText, money(expense.amount)];
     }),
     foot: [['', 'Total', '', '', money(summary.total)]],

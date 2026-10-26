@@ -108,10 +108,7 @@ async function respondWithSession(req: Request, record: StoredUser, status: numb
 }
 
 async function handleAuth(req: Request, action: string) {
-  if (action === 'me' && req.method === 'GET') {
-    const user = await readSession(req);
-    return user ? json({ user }) : json({ error: 'Not logged in' }, 401);
-  }
+  if (action === 'me' && req.method === 'GET') return json({ user: await readSession(req) });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
   if (action === 'logout') return json({ ok: true }, 200, { 'Set-Cookie': sessionCookie(req, '', 0) });
   if (action !== 'signup' && action !== 'login') return json({ error: 'Not found' }, 404);

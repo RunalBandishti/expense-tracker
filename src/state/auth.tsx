@@ -23,8 +23,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
 
   useEffect(() => {
-    api<{ user: User }>('/auth/me').then(
-      ({ user }) => setState({ status: 'authenticated', user }),
+    api<{ user: User | null }>('/auth/me').then(
+      ({ user }) => setState(user ? { status: 'authenticated', user } : { status: 'anonymous' }),
       () => setState({ status: 'anonymous' }),
     );
   }, []);

@@ -8,8 +8,12 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    // Emulating the SPA catch-all redirect in dev would rewrite Vite's own module URLs to index.html.
-    netlify({ redirects: { enabled: false } }),
+    netlify({
+      // In dev the SPA catch-all would rewrite Vite's own module URLs to index.html.
+      redirects: { enabled: false },
+      // Unused here, and its Deno runtime crashes the dev server when the local Deno is incompatible.
+      edgeFunctions: { enabled: false },
+    }),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'logo.svg', 'apple-touch-icon-180x180.png'],
