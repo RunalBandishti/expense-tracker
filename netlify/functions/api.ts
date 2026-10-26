@@ -1,6 +1,7 @@
 import type { Config } from '@netlify/functions';
 import { handleAuth, readSession } from '../lib/auth';
 import { HttpError, json } from '../lib/http';
+import { listSavedPeople } from '../lib/people';
 import { deleteSubscription, pushPublicKey, saveSubscription, sendTestPush } from '../lib/push';
 import {
   acceptInvite,
@@ -14,6 +15,7 @@ import {
   publicTrip,
   removeMember,
   revokeLink,
+  tripsOf,
 } from '../lib/trips';
 
 const ID = '([a-zA-Z0-9-]{1,64})';
@@ -43,6 +45,7 @@ async function handle(req: Request): Promise<Response> {
   if (!user) return json({ error: 'Please log in again' }, 401);
 
   if (path === '/trips' && method === 'GET') return listTrips(user);
+  if (path === '/people' && method === 'GET') return listSavedPeople(user, tripsOf);
   if ((match = path.match(ROUTES.trip))) {
     if (method === 'GET') return getTrip(user, match[1]);
     if (method === 'DELETE') return deleteTrip(user, match[1]);

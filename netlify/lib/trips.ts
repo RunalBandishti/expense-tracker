@@ -4,6 +4,7 @@ import { applyOp } from '../../src/lib/ops';
 import type { Trip } from '../../src/lib/types';
 import type { SessionUser } from './auth';
 import { HttpError, json, noContent, randomToken, readJson } from './http';
+import { rememberSavedPeople } from './people';
 import { parseOps } from './validate';
 
 type LinkKind = 'share' | 'invite';
@@ -80,8 +81,9 @@ export async function getTrip(user: SessionUser, id: string) {
 }
 
 export async function applyOps(req: Request, user: SessionUser, id: string) {
-  const [first, ...rest] = parseOps(await readJson(req), user.id);
-  let ops = [first, ...rest];
+  const submitted = parseOps(await readJson(req), user.id);
+  const [first, ...rest] = submitted;
+  let ops = submitted;
   if (first.type === 'trip/create') {
     if (first.trip.id !== id) throw new HttpError(400, 'Some changes were invalid');
     const existing = await readTrip(id);
@@ -117,6 +119,7 @@ export async function applyOps(req: Request, user: SessionUser, id: string) {
   }
   if (ops.some((op) => op.type === 'trip/create')) throw new HttpError(400, 'Some changes were invalid');
   const trip = await mutateTrip(id, user, (current) => ops.reduce((acc, op) => applyOp(acc, op) ?? acc, current));
+  await rememberSavedPeople(user.id, submitted, trip);
   return json({ trip });
 }
 

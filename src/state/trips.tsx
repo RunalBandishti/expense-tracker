@@ -4,8 +4,9 @@ import { DEFAULT_CATEGORIES } from '../lib/categories';
 import { tripTiming } from '../lib/dates';
 import { newId } from '../lib/id';
 import { applyOp, type Op } from '../lib/ops';
+import { mergeSavedPeople, peopleTouchedBy, rememberPeople, type SavedPerson } from '../lib/savedPeople';
 import { findPersonByName } from '../lib/split';
-import { readStored, tripsCacheKey, USER_KEY, writeStored } from '../lib/storage';
+import { readStored, savedPeopleCacheKey, tripsCacheKey, USER_KEY, writeStored } from '../lib/storage';
 import type { Person, Trip, TripDetails, User } from '../lib/types';
 import { useAuth } from './auth';
 import { useToast } from './toast';
@@ -29,6 +30,8 @@ type TripsContextValue = {
   loadError: string | null;
   syncStatus: SyncStatus;
   pendingCount: number;
+  /** Only people this account added itself, never ones friends added to shared events. */
+  savedPeople: SavedPerson[];
   createTrip: (details: TripDetails, people: Person[]) => Trip;
   apply: (tripId: string, ...ops: Op[]) => void;
   removeTrip: (tripId: string) => void;
@@ -46,21 +49,15 @@ export function useTrips() {
   return context;
 }
 
-/** One entry per name across all the user's events, newest event first, keeping any UPI ID known for that name. */
 export function useSavedPeople() {
-  const { trips } = useTrips();
-  return useMemo(() => {
-    const byName = new Map<string, Person>();
-    for (const trip of [...trips].sort((a, b) => b.updatedAt - a.updatedAt)) {
-      for (const person of trip.people) {
-        const key = person.name.toLowerCase();
-        const saved = byName.get(key);
-        if (!saved) byName.set(key, person);
-        else if (!saved.upiId && person.upiId) byName.set(key, { ...saved, upiId: person.upiId });
-      }
-    }
-    return [...byName.values()];
-  }, [trips]);
+  const { savedPeople } = useTrips();
+  return useMemo(
+    () =>
+      savedPeople.map(
+        ({ name, upiId }): Person => ({ id: `saved:${name.toLowerCase()}`, name, ...(upiId ? { upiId } : {}) }),
+      ),
+    [savedPeople],
+  );
 }
 
 /** Makes a person for an event, reusing the UPI ID already saved for that name elsewhere. */
@@ -86,7 +83,9 @@ export function TripsProvider({ user, children }: { user: User; children: ReactN
   const { expireSession } = useAuth();
   const toast = useToast();
   const cacheKey = tripsCacheKey(user.id);
+  const peopleKey = savedPeopleCacheKey(user.id);
   const [entries] = useState(() => new Map<string, Entry>(readStored<[string, Entry][]>(cacheKey) ?? []));
+  const [savedPeople, setSavedPeople] = useState(() => readStored<SavedPerson[]>(peopleKey) ?? []);
   const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(entries.size === 0);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -188,6 +187,10 @@ export function TripsProvider({ user, children }: { user: User; children: ReactN
     async function refreshAll(force = false) {
       if (!force && Date.now() - lastRefresh < REFRESH_THROTTLE_MS) return;
       lastRefresh = Date.now();
+      api<{ people: SavedPerson[] }>('/people').then(
+        ({ people }) => setSavedPeople((list) => mergeSavedPeople(list, people)),
+        () => undefined,
+      );
       try {
         const { trips } = await api<{ trips: Trip[] }>('/trips');
         const seen = new Set(trips.map((trip) => trip.id));
@@ -232,6 +235,7 @@ export function TripsProvider({ user, children }: { user: User; children: ReactN
         entries.set(trip.id, { confirmed: null, pending: [{ type: 'trip/create', trip }] });
         commit();
         schedule(trip.id, 0);
+        setSavedPeople((list) => rememberPeople(list, people, now));
         return trip;
       },
       apply(tripId: string, ...ops: Op[]) {
@@ -240,6 +244,10 @@ export function TripsProvider({ user, children }: { user: User; children: ReactN
         entry.pending.push(...ops);
         commit();
         schedule(tripId);
+        const trip = entry.pending.reduce<Trip | null>(applyOp, entry.confirmed);
+        if (!trip) return;
+        const { people, upiSetIds } = peopleTouchedBy(ops, trip);
+        setSavedPeople((list) => rememberPeople(list, people, Date.now(), upiSetIds));
       },
       removeTrip(tripId: string) {
         const entry = entries.get(tripId);
@@ -281,6 +289,10 @@ export function TripsProvider({ user, children }: { user: User; children: ReactN
       },
     };
   }, [entries, cacheKey, user]);
+
+  useEffect(() => {
+    if (readStored<User>(USER_KEY)?.id === user.id) writeStored(peopleKey, savedPeople);
+  }, [peopleKey, savedPeople, user.id]);
 
   useEffect(() => {
     void engine.refreshAll(true);
@@ -327,6 +339,7 @@ export function TripsProvider({ user, children }: { user: User; children: ReactN
       loadError,
       syncStatus: offline ? 'offline' : pendingCount > 0 || inFlightCount > 0 ? 'saving' : 'saved',
       pendingCount,
+      savedPeople,
       createTrip: engine.createTrip,
       apply: engine.apply,
       removeTrip: engine.removeTrip,
@@ -335,7 +348,7 @@ export function TripsProvider({ user, children }: { user: User; children: ReactN
       runAction: engine.runAction,
       retryLoad: () => void engine.refreshAll(true),
     }),
-    [user, trips, loading, loadError, offline, pendingCount, inFlightCount, engine],
+    [user, trips, loading, loadError, offline, pendingCount, savedPeople, inFlightCount, engine],
   );
 
   return <TripsContext.Provider value={value}>{children}</TripsContext.Provider>;
