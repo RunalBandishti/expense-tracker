@@ -4,4 +4,5 @@ dist
 .env
 *.local
 .DS_Store
-mockups/**/*.png
+mockups/*.png
+mockups/smoke/
