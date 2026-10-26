@@ -9,8 +9,8 @@ import { useAuth } from '../state/auth';
 type Mode = 'login' | 'signup' | 'recover';
 
 const COPY: Record<Mode, { title: string; body: string; submit: string }> = {
-  login: { title: 'Welcome back', body: 'Log in to see your trips and splits.', submit: 'Log in' },
-  signup: { title: 'Create your account', body: 'Track trip budgets and split expenses with your group.', submit: 'Create account' },
+  login: { title: 'Welcome back', body: 'Log in to see your expenses and splits.', submit: 'Log in' },
+  signup: { title: 'Create your account', body: 'Track expenses and budgets, and split costs with friends.', submit: 'Create account' },
   recover: { title: 'Reset your password', body: 'Use the recovery code you saved when you signed up.', submit: 'Set new password' },
 };
 

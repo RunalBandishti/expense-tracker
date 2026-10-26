@@ -24,12 +24,12 @@ async function readTrip(id: string) {
 
 function memberOf(trip: Trip, user: SessionUser) {
   const member = trip.members.find((candidate) => candidate.userId === user.id);
-  if (!member) throw new HttpError(404, 'Trip not found');
+  if (!member) throw new HttpError(404, 'Event not found');
   return member;
 }
 
 function requireOwner(trip: Trip, user: SessionUser) {
-  if (memberOf(trip, user).role !== 'owner') throw new HttpError(403, 'Only the trip owner can do that');
+  if (memberOf(trip, user).role !== 'owner') throw new HttpError(403, 'Only the event owner can do that');
 }
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -42,12 +42,12 @@ async function mutateTrip(id: string, user: SessionUser | null, change: (trip: T
   for (let attempt = 0; attempt < 8; attempt++) {
     if (attempt > 0) await pause(20 + Math.random() * 80 * attempt);
     const current = await readTrip(id);
-    if (!current) throw new HttpError(404, 'Trip not found');
+    if (!current) throw new HttpError(404, 'Event not found');
     if (user) memberOf(current.trip, user);
     const next = change(current.trip);
     if (next === current.trip) return next;
     const saved: Trip = { ...next, version: current.trip.version + 1, updatedAt: Date.now() };
-    if (JSON.stringify(saved).length > MAX_TRIP_BYTES) throw new HttpError(413, 'This trip has grown too large');
+    if (JSON.stringify(saved).length > MAX_TRIP_BYTES) throw new HttpError(413, 'This event has grown too large');
     const { modified } = await tripsStore().setJSON(id, saved, { onlyIfMatch: current.etag });
     if (modified) return saved;
   }
@@ -70,7 +70,7 @@ export async function listTrips(user: SessionUser) {
 
 export async function getTrip(user: SessionUser, id: string) {
   const current = await readTrip(id);
-  if (!current) throw new HttpError(404, 'Trip not found');
+  if (!current) throw new HttpError(404, 'Event not found');
   memberOf(current.trip, user);
   return json({ trip: current.trip });
 }
@@ -133,7 +133,7 @@ export async function deleteTrip(user: SessionUser, id: string) {
 
 export async function leaveTrip(user: SessionUser, id: string) {
   await mutateTrip(id, user, (current) => {
-    if (memberOf(current, user).role === 'owner') throw new HttpError(400, 'Owners delete the trip instead of leaving it');
+    if (memberOf(current, user).role === 'owner') throw new HttpError(400, 'Owners delete the event instead of leaving it');
     return { ...current, members: current.members.filter((member) => member.userId !== user.id) };
   });
   await membershipsStore().delete(membershipKey(user.id, id));
@@ -207,7 +207,7 @@ export async function acceptInvite(user: SessionUser, token: string) {
   const trip = await mutateTrip(id, null, (current) => {
     if (current.inviteToken !== token) throw new HttpError(404, 'This invite link has expired');
     if (current.members.some((member) => member.userId === user.id)) return current;
-    if (current.members.length >= MAX_MEMBERS) throw new HttpError(400, 'This trip already has the maximum number of members');
+    if (current.members.length >= MAX_MEMBERS) throw new HttpError(400, 'This event already has the maximum number of members');
     return {
       ...current,
       members: [...current.members, { userId: user.id, username: user.username, role: 'editor', joinedAt: Date.now() }],

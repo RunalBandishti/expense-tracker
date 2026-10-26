@@ -28,7 +28,7 @@ export function PersonSheet({ trip, person, focusUpi = false, onClose }: Props) 
   const nameError = !trimmed
     ? 'Enter a name'
     : isReservedName(trimmed) || (namesake && namesake.id !== person.id)
-      ? 'That name is already used on this trip'
+      ? 'That name is already used in this event'
       : null;
   const upiError = trimmedUpi && !isValidUpiId(trimmedUpi) ? 'Enter a UPI ID like name@okaxis' : null;
 
@@ -99,7 +99,7 @@ export function PersonSheet({ trip, person, focusUpi = false, onClose }: Props) 
         <div className="rounded-2xl border border-zinc-200 bg-white p-4">
           <Button variant="danger" className="w-full" disabled={uses > 0} onClick={handleRemove}>
             <Trash className="size-4" />
-            Remove from trip
+            Remove from event
           </Button>
           {uses > 0 && (
             <p className="mt-2 text-center text-xs text-zinc-500">

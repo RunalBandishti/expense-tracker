@@ -42,7 +42,7 @@ export function JoinPage() {
   if (error) {
     return (
       <div className="mx-auto max-w-md px-5 pt-24">
-        <EmptyState emoji="🔗" title="Invite not available" body={error} action={<Button onClick={() => navigate('/')}>Go to my trips</Button>} />
+        <EmptyState emoji="🔗" title="Invite not available" body={error} action={<Button onClick={() => navigate('/')}>Go to my events</Button>} />
       </div>
     );
   }
@@ -61,7 +61,7 @@ export function JoinPage() {
         </p>
         <Button size="lg" className="mt-6 w-full" onClick={join} disabled={joining}>
           {joining && <LoaderCircle className="size-4 animate-spin" />}
-          Join trip
+          Join event
         </Button>
         <Link to="/" className="mt-3 inline-block text-sm font-medium text-zinc-500 hover:text-zinc-900">
           Not now

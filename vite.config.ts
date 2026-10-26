@@ -20,7 +20,7 @@ export default defineConfig({
       manifest: {
         name: 'Expense Manager',
         short_name: 'Expenses',
-        description: 'Track trip expenses, budgets and splits with your group.',
+        description: 'Track expenses and budgets, and split costs with friends.',
         theme_color: '#F6F5F1',
         background_color: '#F6F5F1',
         display: 'standalone',

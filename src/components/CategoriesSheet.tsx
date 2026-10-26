@@ -44,7 +44,7 @@ export function CategoriesSheet({ trip, onClose }: { trip: Trip; onClose: () => 
 
   return (
     <Sheet title="Categories" onClose={onClose} cancelLabel="Done">
-      <p className="px-1 text-sm text-zinc-500">Rename, add or delete the categories used on this trip.</p>
+      <p className="px-1 text-sm text-zinc-500">Rename, add or delete the categories used in this event.</p>
       <ul className="mt-4 divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
         {categories.map((category) => {
           const count = counts.get(category.id) ?? 0;

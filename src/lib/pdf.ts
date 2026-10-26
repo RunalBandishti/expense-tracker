@@ -197,7 +197,7 @@ export async function exportTripPdf(trip: Trip) {
     const balanceText = (balance: number) =>
       balance === 0 ? 'Settled' : `${balance > 0 ? 'Gets back' : 'Owes'} ${money(Math.abs(balance))}`;
     table({
-      head: [['PERSON', 'PERSONAL', 'SHARED', 'TOTAL SHARE', ...(hasPayers ? ['PAID', 'BALANCE'] : ['OF TRIP'])]],
+      head: [['PERSON', 'PERSONAL', 'SHARED', 'TOTAL SHARE', ...(hasPayers ? ['PAID', 'BALANCE'] : ['OF TOTAL'])]],
       body: summary.people.map(({ person, personal, shared, total, paid, balance }) => [
         person.name,
         money(personal),
@@ -334,7 +334,7 @@ export async function exportTripPdf(trip: Trip) {
     doc.text(`Page ${page} of ${pageCount}`, pageWidth - MARGIN, pageHeight - 24, { align: 'right' });
   }
 
-  const fileName = `${slugify(trip.name) || 'trip'}-expenses.pdf`;
+  const fileName = `${slugify(trip.name) || 'event'}-expenses.pdf`;
   const file = new File([doc.output('blob')], fileName, { type: 'application/pdf' });
   // On phones the share sheet (Files, WhatsApp, …) works better than a download, which standalone PWAs often block.
   if (window.matchMedia('(pointer: coarse)').matches && navigator.canShare?.({ files: [file] })) {

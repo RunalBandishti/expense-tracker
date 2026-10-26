@@ -279,7 +279,7 @@ export function SplitPicker({ people, split, amount, currency, onChange, onAddPe
                   addPerson();
                 }
               }}
-              placeholder={people.length ? 'Name' : 'Add the people on this trip'}
+              placeholder={people.length ? 'Name' : 'Add the people in this event'}
               aria-label="New person's name"
               autoCapitalize="words"
               enterKeyHint="done"

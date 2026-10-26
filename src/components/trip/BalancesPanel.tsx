@@ -123,7 +123,7 @@ export function BalancesPanel({
           </p>
         )}
         {trip.people.length === 0 && (
-          <p className="mb-3 px-1 text-sm text-zinc-500">Add the people on this trip to split expenses between them.</p>
+          <p className="mb-3 px-1 text-sm text-zinc-500">Add the people in this event to split expenses between them.</p>
         )}
         <ul className="divide-y divide-zinc-100 overflow-hidden rounded-2xl border border-zinc-200 bg-white">
           {summary.people.map(({ person, personal, shared, total, paid, balance, items }) => {
@@ -234,7 +234,7 @@ export function BalancesPanel({
             </li>
           )}
         </ul>
-        {nameTaken && trimmed && <p className="mt-2 px-1 text-xs text-zinc-500">“{trimmed}” is already on this trip.</p>}
+        {nameTaken && trimmed && <p className="mt-2 px-1 text-xs text-zinc-500">“{trimmed}” is already in this event.</p>}
         {trip.expenses.length > 0 && (
           <dl className="mt-3 flex flex-wrap justify-between gap-x-4 gap-y-1 px-1 text-sm tabular-nums">
             <div className="flex gap-1.5">

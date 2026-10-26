@@ -118,7 +118,7 @@ export function ClaimSheet({ trip, onClose }: { trip: Trip; onClose: () => void 
           myPersonId === null ? 'text-zinc-900' : 'text-zinc-500',
         )}
       >
-        I'm not on this trip
+        I'm not in this event
       </button>
     </Sheet>
   );

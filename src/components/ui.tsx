@@ -117,7 +117,9 @@ export function Sheet({ title, onClose, children, formId, submitLabel = 'Save', 
   useEffect(() => {
     const dialog = dialogRef.current!;
     dialog.showModal();
-    (dialog.querySelector<HTMLElement>('[data-autofocus]') ?? dialog).focus();
+    // On touch screens this would open the keyboard mid slide-in, and iOS then leaves the sheet scrolled to its bottom.
+    const autofocusField = window.matchMedia('(pointer: coarse)').matches ? null : dialog.querySelector<HTMLElement>('[data-autofocus]');
+    (autofocusField ?? dialog).focus();
     const unregisterToastHost = registerToastHost(dialog);
     return () => {
       unregisterToastHost();

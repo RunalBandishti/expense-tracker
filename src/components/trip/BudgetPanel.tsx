@@ -32,7 +32,7 @@ export function BudgetPanel({ trip, total, timing, onSetBudget }: Props) {
         },
   ];
   if (perDay) stats.push({ label: perDay.label, value: money(perDay.amount) });
-  if (timingValue) stats.push({ label: timing.kind === 'upcoming' ? 'Starts' : 'Trip', value: timingValue });
+  if (timingValue) stats.push({ label: timing.kind === 'upcoming' ? 'Starts' : 'Progress', value: timingValue });
 
   return (
     <section aria-label="Budget">

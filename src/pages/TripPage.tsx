@@ -51,10 +51,10 @@ export function TripPage() {
     return (
       <div className="mx-auto max-w-md px-5 pt-24">
         <EmptyState
-          emoji="🗺️"
-          title="Trip not found"
+          emoji="🔍"
+          title="Event not found"
           body="It may have been deleted, or you no longer have access."
-          action={<Button onClick={() => navigate('/')}>Back to trips</Button>}
+          action={<Button onClick={() => navigate('/')}>Back to events</Button>}
         />
       </div>
     );
@@ -228,7 +228,7 @@ function TripView({ trip }: { trip: Trip }) {
             className="-ml-2 flex items-center gap-0.5 rounded-full px-2 py-2 text-sm font-medium text-zinc-600 transition hover:text-zinc-900"
           >
             <ChevronLeft className="size-4" />
-            Trips
+            Events
           </Link>
         )}
         <div className="flex items-center gap-2">
@@ -248,14 +248,14 @@ function TripView({ trip }: { trip: Trip }) {
             </Button>
           )}
           <Menu
-            label="Trip options"
+            label="Event options"
             items={[
-              { label: 'Edit trip', icon: <Pencil className="size-4" />, onSelect: () => setSheet({ kind: 'trip' }) },
+              { label: 'Edit event', icon: <Pencil className="size-4" />, onSelect: () => setSheet({ kind: 'trip' }) },
               { label: 'Categories', icon: <Tags className="size-4" />, onSelect: () => setSheet({ kind: 'categories' }) },
               { label: 'Who are you?', icon: <UserRound className="size-4" />, onSelect: () => setSheet({ kind: 'claim' }) },
               isOwner
-                ? { label: 'Delete trip', icon: <Trash className="size-4" />, danger: true, onSelect: handleRemove }
-                : { label: 'Leave trip', icon: <LogOut className="size-4" />, danger: true, onSelect: handleRemove },
+                ? { label: 'Delete event', icon: <Trash className="size-4" />, danger: true, onSelect: handleRemove }
+                : { label: 'Leave event', icon: <LogOut className="size-4" />, danger: true, onSelect: handleRemove },
             ]}
             triggerClassName="grid size-8 place-items-center rounded-full border border-zinc-300 bg-white text-zinc-700 transition hover:bg-zinc-50"
           >

@@ -128,7 +128,7 @@ export function TripsProvider({ user, children }: { user: User; children: ReactN
           setOffline(status === 0);
         } else if (status === 404 || status === 403) {
           entries.delete(id);
-          if (!entry.removal) callbacks.current.toast({ message: 'That trip is no longer shared with you', tone: 'error' });
+          if (!entry.removal) callbacks.current.toast({ message: 'That event is no longer shared with you', tone: 'error' });
         } else {
           const current = entries.get(id);
           if (current) current.pending = current.pending.slice(batch.length);

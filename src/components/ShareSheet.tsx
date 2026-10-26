@@ -172,7 +172,7 @@ export function ShareSheet({ trip, onClose, onChooseIdentity }: Props) {
                       aria-label={`Remove ${member.username}`}
                       disabled={busy === member.userId}
                       onClick={() => {
-                        if (window.confirm(`Remove ${member.username} from this trip?`)) {
+                        if (window.confirm(`Remove ${member.username} from this event?`)) {
                           void act(member.userId, `/members/${member.userId}`, 'DELETE');
                         }
                       }}
@@ -192,7 +192,7 @@ export function ShareSheet({ trip, onClose, onChooseIdentity }: Props) {
           <div className="min-w-0 flex-1">
             <p className="text-xs text-zinc-500">You are</p>
             <p className="truncate text-[15px] font-medium">
-              {myPerson ? myPerson.name : me?.personId === null ? 'Not on this trip' : 'Not chosen yet'}
+              {myPerson ? myPerson.name : me?.personId === null ? 'Not in this event' : 'Not chosen yet'}
             </p>
           </div>
           <Button size="sm" variant="secondary" onClick={onChooseIdentity}>

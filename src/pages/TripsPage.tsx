@@ -27,10 +27,10 @@ export function TripsPage() {
     <div className="mx-auto max-w-5xl px-5 pb-36 pt-[calc(env(safe-area-inset-top)+1.75rem)] lg:px-10 lg:pb-16 lg:pt-12">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[32px] font-semibold leading-tight tracking-tight">Trips</h1>
+          <h1 className="text-[32px] font-semibold leading-tight tracking-tight">Events</h1>
           {trips.length > 0 && (
             <p className="text-sm tabular-nums text-zinc-500">
-              {pluralize(trips.length, 'trip')} · {spentText} spent in total
+              {pluralize(trips.length, 'event')} · {spentText} spent in total
             </p>
           )}
           {!isDesktop && syncStatus !== 'saved' && (
@@ -42,7 +42,7 @@ export function TripsPage() {
         {isDesktop ? (
           <Button onClick={() => setCreating(true)}>
             <Plus className="size-4" />
-            New trip
+            New event
           </Button>
         ) : (
           <UserMenu />
@@ -55,19 +55,19 @@ export function TripsPage() {
         ) : loadError ? (
           <EmptyState
             emoji="📡"
-            title="Couldn't load your trips"
+            title="Couldn't load your events"
             body={loadError}
             action={<Button onClick={retryLoad}>Try again</Button>}
           />
         ) : trips.length === 0 ? (
           <EmptyState
-            emoji="🧳"
-            title="No trips yet"
-            body="Create a trip or event to track its budget, log expenses and split them with your group."
+            emoji="💸"
+            title="No events yet"
+            body="An event can be a trip, a party, your monthly home costs or anything else. Track its budget, log expenses and split them with friends."
             action={
               <Button size="lg" onClick={() => setCreating(true)}>
                 <Plus className="size-4" />
-                Create your first trip
+                Create your first event
               </Button>
             }
           />
@@ -87,7 +87,7 @@ export function TripsPage() {
           className="fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] left-1/2 z-20 -translate-x-1/2 shadow-xl shadow-black/20"
         >
           <Plus className="size-4" />
-          New trip
+          New event
         </Button>
       )}
 

@@ -160,7 +160,7 @@ export function LabelCombobox({
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[15px] font-semibold text-emerald-800">Create “{option.name}”</p>
-              <p className="text-xs text-emerald-700/80">New label for this trip</p>
+              <p className="text-xs text-emerald-700/80">New label for this event</p>
             </div>
           </>
         )}

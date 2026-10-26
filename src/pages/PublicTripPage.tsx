@@ -119,7 +119,7 @@ export function PublicTripPage() {
       <p className="mt-12 text-center text-sm text-zinc-500">
         Updates automatically.{' '}
         <Link to="/" className="font-semibold text-zinc-900 underline-offset-4 hover:underline">
-          Track your own trips
+          Track your own expenses
         </Link>
       </p>
     </div>

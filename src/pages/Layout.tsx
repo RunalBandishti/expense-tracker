@@ -20,16 +20,16 @@ function Sidebar() {
         <Logo />
         <span>
           <span className="block font-semibold leading-tight tracking-tight">Expense Manager</span>
-          <span className="block text-xs text-zinc-500">Trips, budgets & splits</span>
+          <span className="block text-xs text-zinc-500">Expenses, budgets & splits</span>
         </span>
       </Link>
       <div className="px-5 pt-6">
         <Button className="w-full" onClick={() => setCreating(true)}>
           <Plus className="size-4" />
-          New trip
+          New event
         </Button>
       </div>
-      <nav aria-label="Trips" className="mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto px-4 pb-4">
+      <nav aria-label="Events" className="mt-5 min-h-0 flex-1 space-y-2 overflow-y-auto px-4 pb-4">
         {trips.map((trip) => (
           <TripCard key={trip.id} trip={trip} compact active={trip.id === activeTripId} />
         ))}
