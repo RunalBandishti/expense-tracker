@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { KeyRound, LifeBuoy, LogOut, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
+import { Bell, BellOff, KeyRound, LifeBuoy, LogOut, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
 import { setThemePreference, useThemePreference, type ThemePreference } from '../lib/theme';
 import { useAuth } from '../state/auth';
+import { useReminders } from '../state/reminders';
 import { useToast } from '../state/toast';
 import { useTrips } from '../state/trips';
 import { PasswordSheet } from './AccountSheets';
@@ -41,10 +42,20 @@ export function UserMenu({ placement = 'down', showName = false }: { placement?:
   const { state, logout, regenerateRecoveryCode } = useAuth();
   const { pendingCount } = useTrips();
   const toast = useToast();
+  const reminders = useReminders();
   const [changingPassword, setChangingPassword] = useState(false);
   const user = state.status === 'authenticated' ? state.user : null;
 
   const items: MenuItem[] = [];
+  if (reminders.status === 'on') {
+    items.push({ label: 'Turn off reminders', icon: <BellOff className="size-4" />, onSelect: () => void reminders.turnOff() });
+  } else if (reminders.status === 'off' || reminders.status === 'blocked') {
+    items.push({
+      label: reminders.status === 'off' ? 'Turn on reminders' : 'Reminders are blocked',
+      icon: <Bell className="size-4" />,
+      onSelect: () => void reminders.turnOn(),
+    });
+  }
   if (user?.provider === 'password') {
     items.push(
       { label: 'Change password', icon: <KeyRound className="size-4" />, onSelect: () => setChangingPassword(true) },

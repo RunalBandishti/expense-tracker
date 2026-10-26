@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, ApiError } from '../lib/api';
 import { readStored, removeStored, tripsCacheKey, USER_KEY, writeStored } from '../lib/storage';
 import type { User } from '../lib/types';
+import { disableReminders } from './reminders';
 
 type AuthState = { status: 'loading' } | { status: 'anonymous' } | { status: 'authenticated'; user: User };
 
@@ -95,6 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     if (state.status === 'authenticated') removeStored(tripsCacheKey(state.user.id));
+    // Before logging out, while the session can still unlink this device; otherwise the next account inherits its reminders.
+    await disableReminders().catch(() => undefined);
     await api('/auth/logout', { method: 'POST' }).catch(() => undefined);
     signOut();
   }, [state, signOut]);

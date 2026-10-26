@@ -54,18 +54,22 @@ async function mutateTrip(id: string, user: SessionUser | null, change: (trip: T
   throw new HttpError(409, 'Lots of changes at once. Please try again.');
 }
 
-export async function listTrips(user: SessionUser) {
+export async function tripsOf(userId: string) {
   const memberships = membershipsStore();
-  const { blobs } = await memberships.list({ prefix: `${user.id}/` });
+  const { blobs } = await memberships.list({ prefix: `${userId}/` });
   const trips = await Promise.all(
     blobs.map(async ({ key }) => {
-      const current = await readTrip(key.slice(user.id.length + 1));
-      if (current?.trip.members.some((member) => member.userId === user.id)) return current.trip;
+      const current = await readTrip(key.slice(userId.length + 1));
+      if (current?.trip.members.some((member) => member.userId === userId)) return current.trip;
       await memberships.delete(key);
       return null;
     }),
   );
-  return json({ trips: trips.filter(Boolean) });
+  return trips.filter((trip): trip is Trip => trip !== null);
+}
+
+export async function listTrips(user: SessionUser) {
+  return json({ trips: await tripsOf(user.id) });
 }
 
 export async function getTrip(user: SessionUser, id: string) {

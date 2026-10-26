@@ -22,7 +22,7 @@ const USERNAME_PATTERN = /^[a-zA-Z0-9._@+-]{3,64}$/;
 const RECOVERY_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 const usersStore = () => getStore({ name: 'users', consistency: 'strong' });
-const configStore = () => getStore({ name: 'config', consistency: 'strong' });
+export const configStore = () => getStore({ name: 'config', consistency: 'strong' });
 const passwordKey = (username: string) => `u:${username.toLowerCase()}`;
 const googleKey = (sub: string) => `g:${sub}`;
 const publicUser = ({ id, username, provider }: StoredUser): User => ({ id, username, provider });

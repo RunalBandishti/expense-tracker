@@ -38,6 +38,7 @@ export default defineConfig({
         globIgnores: ['**/html2canvas-*.js', '**/purify.es-*.js', '**/index.es-*.js'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
+        importScripts: ['/push-sw.js'],
       },
     }),
   ],

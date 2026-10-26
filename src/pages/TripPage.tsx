@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ChevronLeft, Ellipsis, FileDown, LoaderCircle, LogOut, Pencil, Plus, Share2, Tags, Trash, UserRound } from 'lucide-react';
 import { CategoriesSheet } from '../components/CategoriesSheet';
 import { ClaimSheet } from '../components/ClaimSheet';
 import { ExpenseSheet } from '../components/ExpenseSheet';
 import { PersonSheet } from '../components/PersonSheet';
+import { ReminderPrompt } from '../components/ReminderPrompt';
 import { SettlementSheet } from '../components/SettlementSheet';
 import { ShareSheet } from '../components/ShareSheet';
 import { TripSheet } from '../components/TripSheet';
@@ -67,8 +68,9 @@ function TripView({ trip }: { trip: Trip }) {
   const navigate = useNavigate();
   const toast = useToast();
   const isDesktop = useIsDesktop();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>('expenses');
-  const [sheet, setSheet] = useState<OpenSheet>(null);
+  const [sheet, setSheet] = useState<OpenSheet>(() => (searchParams.has('add') ? { kind: 'expense' } : null));
   const [exporting, setExporting] = useState(false);
 
   const summary = useMemo(() => summarizeTrip(trip), [trip]);
@@ -87,6 +89,10 @@ function TripView({ trip }: { trip: Trip }) {
   ]
     .filter(Boolean)
     .join(' · ');
+
+  useEffect(() => {
+    if (searchParams.has('add')) setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (!refreshesLive) return;
@@ -207,6 +213,8 @@ function TripView({ trip }: { trip: Trip }) {
   const desktopTab = tab === 'insights' ? 'insights' : 'expenses';
   const upiTransfer = sheet?.kind === 'upi' ? sheet.transfer : undefined;
 
+  const reminderPrompt = (timing.kind === 'upcoming' || timing.kind === 'ongoing') && <ReminderPrompt />;
+
   const claimPrompt = me && me.personId === undefined && trip.people.length > 0 && (
     <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
       <UserRound className="size-5 shrink-0 text-emerald-700" />
@@ -277,6 +285,7 @@ function TripView({ trip }: { trip: Trip }) {
       {isDesktop ? (
         <div className="mt-8 space-y-8">
           {claimPrompt}
+          {reminderPrompt}
           <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] items-start gap-10">
             <div className="space-y-10">
               {budgetPanel}
@@ -298,6 +307,7 @@ function TripView({ trip }: { trip: Trip }) {
       ) : (
         <div className="mt-6 space-y-6">
           {claimPrompt}
+          {reminderPrompt}
           {budgetPanel}
           <SegmentedControl
             value={tab}
