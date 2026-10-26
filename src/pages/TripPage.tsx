@@ -155,7 +155,9 @@ function TripView({ trip }: { trip: Trip }) {
 
   const openPay = (transfer: Transfer) => {
     const payment = transferPayment(trip, transfer);
+    const payee = trip.people.find((person) => person.id === transfer.toId);
     if (payment) setSheet({ kind: 'upi', payment, transfer });
+    else if (payee) setSheet({ kind: 'person', person: payee, focusUpi: true });
   };
 
   const requestPayment = async (transfer: Transfer) => {

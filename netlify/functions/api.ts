@@ -1,7 +1,7 @@
 import type { Config } from '@netlify/functions';
 import { handleAuth, readSession } from '../lib/auth';
 import { HttpError, json } from '../lib/http';
-import { deleteSubscription, pushPublicKey, saveSubscription } from '../lib/push';
+import { deleteSubscription, pushPublicKey, saveSubscription, sendTestPush } from '../lib/push';
 import {
   acceptInvite,
   applyOps,
@@ -59,6 +59,7 @@ async function handle(req: Request): Promise<Response> {
   if (path === '/push/key' && method === 'GET') return pushPublicKey();
   if (path === '/push/subscriptions' && method === 'POST') return saveSubscription(req, user);
   if (path === '/push/subscriptions' && method === 'DELETE') return deleteSubscription(req, user);
+  if (path === '/push/test' && method === 'POST') return sendTestPush(req, user);
   return json({ error: 'Not found' }, 404);
 }
 

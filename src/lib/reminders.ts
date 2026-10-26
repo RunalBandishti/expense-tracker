@@ -37,6 +37,13 @@ export type ReminderNotification = { title: string; body: string; url: string; t
 /** Shared by every reminder so a new one replaces the last instead of piling up. */
 const NOTIFICATION_TAG = 'expense-reminder';
 
+export const testNotification: ReminderNotification = {
+  title: '🔔 Reminders are on',
+  body: `You'll get one at ${reminderTimesLabel} on each day of an event.`,
+  url: '/',
+  tag: NOTIFICATION_TAG,
+};
+
 export function reminderNotification(trips: Trip[], slot: ReminderSlot): ReminderNotification | null {
   const events = trips.filter((trip) => trip.startDate && trip.endDate && trip.startDate <= slot.date && slot.date <= trip.endDate);
   if (events.length === 0) return null;

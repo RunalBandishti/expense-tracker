@@ -40,6 +40,7 @@ export function BalancesPanel({
     id === myPersonId ? (startsSentence ? 'You' : 'you') : (personOf(id)?.name ?? 'Removed person');
   const hasPayers = summary.paidTotal > 0;
   const upiEnabled = supportsUpi(trip);
+  const canAddUpi = !!onEditPerson;
 
   const trimmed = newName.trim();
   const nameTaken = isReservedName(trimmed) || !!findPersonByName(trip.people, trimmed);
@@ -75,7 +76,7 @@ export function BalancesPanel({
               const from = personOf(transfer.fromId);
               const to = personOf(transfer.toId);
               // Without a known "me" (live view, or not picked yet) any viewer might be the payer.
-              const canPay = upiEnabled && !!to?.upiId && (myPersonId == null || transfer.fromId === myPersonId);
+              const canPay = upiEnabled && (!!to?.upiId || canAddUpi) && (myPersonId == null || transfer.fromId === myPersonId);
               const canRequest = upiEnabled && transfer.toId === myPersonId;
               return (
                 <li key={`${transfer.fromId}-${transfer.toId}`} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
@@ -197,6 +198,16 @@ export function BalancesPanel({
                           </Button>
                         )}
                       </div>
+                    )}
+                    {upiEnabled && !person.upiId && onEditPerson && (
+                      <button
+                        type="button"
+                        onClick={() => onEditPerson(person)}
+                        className="mt-2 flex w-full items-center justify-between gap-2 rounded-xl bg-white px-3 py-2.5 text-left text-sm ring-1 ring-zinc-200 transition hover:bg-zinc-50"
+                      >
+                        <span className="text-zinc-500">UPI ID not added</span>
+                        <span className="font-medium text-emerald-700">Add</span>
+                      </button>
                     )}
                     {onEditPerson && (
                       <button

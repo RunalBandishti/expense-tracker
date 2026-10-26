@@ -16,6 +16,14 @@ function setStatus(next: ReminderStatus) {
 
 const isSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
+function unsupportedMessage() {
+  const isAppleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!isAppleMobile) return "This browser can't show reminders. Try Chrome, Edge, Firefox or Safari.";
+  return window.matchMedia('(display-mode: standalone)').matches
+    ? 'Reminders need iOS 16.4 or later.'
+    : 'On iPhone, reminders work in the Home Screen app: tap Share, then Add to Home Screen, and open it from there.';
+}
+
 async function currentSubscription() {
   const registration = await navigator.serviceWorker.getRegistration();
   return (await registration?.pushManager.getSubscription()) ?? null;
@@ -72,6 +80,7 @@ async function enableReminders(): Promise<ReminderStatus> {
     }));
   await saveSubscription(subscription);
   setStatus('on');
+  await api('/push/test', { method: 'POST', json: { endpoint: subscription.endpoint } });
   return 'on';
 }
 
@@ -90,14 +99,19 @@ export function useReminders() {
   const toast = useToast();
   return {
     status: current,
-    turnOn: () =>
-      enableReminders().then(
-        (result) => {
-          if (result === 'on') toast({ message: `Reminders on: ${reminderTimesLabel} on event days` });
-          if (result === 'blocked') toast({ message: 'Notifications are blocked. Allow them for this app in Settings.', tone: 'error' });
-        },
-        (err: Error) => toast({ message: err.message, tone: 'error' }),
-      ),
+    turnOn: async () => {
+      if (current === 'unsupported') {
+        toast({ message: unsupportedMessage() });
+        return;
+      }
+      try {
+        const result = await enableReminders();
+        if (result === 'on') toast({ message: `Reminders on: ${reminderTimesLabel} on event days. Sending a test now.` });
+        if (result === 'blocked') toast({ message: 'Notifications are blocked. Allow them for this app in Settings.', tone: 'error' });
+      } catch (err) {
+        toast({ message: (err as Error).message, tone: 'error' });
+      }
+    },
     turnOff: () => disableReminders().then(() => toast({ message: 'Reminders turned off' })),
   };
 }

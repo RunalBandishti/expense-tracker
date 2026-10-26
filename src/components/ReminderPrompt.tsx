@@ -8,7 +8,7 @@ import { Button } from './ui';
 export function ReminderPrompt() {
   const { status, turnOn } = useReminders();
   const [dismissed, setDismissed] = useState(() => readStored<boolean>(REMINDER_PROMPT_KEY) === true);
-  if (status !== 'off' || dismissed) return null;
+  if ((status !== 'off' && status !== 'unsupported') || dismissed) return null;
 
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white py-3 pl-4 pr-2">

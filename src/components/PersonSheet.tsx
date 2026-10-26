@@ -31,6 +31,11 @@ export function PersonSheet({ trip, person, focusUpi = false, onClose }: Props) 
       ? 'That name is already used in this event'
       : null;
   const upiError = trimmedUpi && !isValidUpiId(trimmedUpi) ? 'Enter a UPI ID like name@okaxis' : null;
+  const upiHint = !focusUpi
+    ? 'Lets others pay with Google Pay, PhonePe or Paytm in one tap.'
+    : isMe
+      ? 'Add your UPI ID so friends can pay you with one tap.'
+      : `Add ${person.name}'s UPI ID to pay them with one tap.`;
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -89,7 +94,7 @@ export function PersonSheet({ trip, person, focusUpi = false, onClose }: Props) 
           {submitted && (nameError || upiError) && <FieldError>{nameError ?? upiError}</FieldError>}
           {supportsUpi(trip) && (
             <p className="mt-2 px-1 text-xs text-zinc-500">
-              {focusUpi ? 'Add your UPI ID so friends can pay you with one tap.' : 'With a UPI ID, others get a Pay button to settle up.'}
+              {upiHint}
             </p>
           )}
         </div>

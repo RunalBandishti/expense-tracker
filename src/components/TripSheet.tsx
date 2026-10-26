@@ -169,7 +169,7 @@ export function TripSheet({ trip, onClose, onCreated }: Props) {
               </>
             )}
           </div>
-          {!hasDates && <p className="mt-2 px-1 text-xs text-zinc-500">Turn on for trips or occasions to track spending day by day.</p>}
+          {!hasDates && <p className="mt-2 px-1 text-xs text-zinc-500">Turn on to track daily spending and get reminders to log expenses.</p>}
           {submitted && errors.dates && <FieldError>{errors.dates}</FieldError>}
         </section>
 
