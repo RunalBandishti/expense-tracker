@@ -1,8 +1,9 @@
 import { Link } from 'react-router';
 import { formatDateRange, pluralize, tripTiming, type TripTiming } from '../lib/dates';
 import { formatMoney } from '../lib/money';
-import { peopleLabel, tripTotal } from '../lib/split';
+import { peopleLabel, summarizeTrip } from '../lib/split';
 import type { Trip } from '../lib/types';
+import { useTrips } from '../state/trips';
 import { cx, ProgressBar } from './ui';
 
 function statusFor(timing: TripTiming, overBudget: boolean) {
@@ -20,10 +21,15 @@ function statusFor(timing: TripTiming, overBudget: boolean) {
 }
 
 export function TripCard({ trip, compact = false, active = false }: { trip: Trip; compact?: boolean; active?: boolean }) {
-  const total = tripTotal(trip);
-  const ratio = trip.budget ? total / trip.budget : null;
+  const { user } = useTrips();
+  const summary = summarizeTrip(trip);
+  const money = (minor: number) => formatMoney(minor, trip.currency);
+  const ratio = trip.budget ? summary.total / trip.budget : null;
   const status = statusFor(tripTiming(trip.startDate, trip.endDate), ratio !== null && ratio > 1);
   const dates = trip.startDate && trip.endDate ? formatDateRange(trip.startDate, trip.endDate) : null;
+  const myPersonId = trip.members.find((member) => member.userId === user.id)?.personId;
+  const myBalance = summary.paidTotal > 0 ? summary.people.find((entry) => entry.person.id === myPersonId)?.balance : undefined;
+  const meta = [dates, peopleLabel(trip.people.length), trip.members.length > 1 && 'Shared'].filter(Boolean).join(' · ');
 
   return (
     <Link
@@ -46,7 +52,7 @@ export function TripCard({ trip, compact = false, active = false }: { trip: Trip
         </span>
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{trip.name}</p>
-          <p className="truncate text-xs text-zinc-500">{[dates, peopleLabel(trip.people.length)].filter(Boolean).join(' · ')}</p>
+          <p className="truncate text-xs text-zinc-500">{meta}</p>
         </div>
         {status && !compact && (
           <span className={cx('flex shrink-0 items-center gap-1.5 text-[11px] font-medium', status.className)}>
@@ -57,15 +63,23 @@ export function TripCard({ trip, compact = false, active = false }: { trip: Trip
       </div>
       <div className={cx('flex items-baseline justify-between gap-2', compact ? 'mt-2.5' : 'mt-4')}>
         <p className={cx('font-semibold tracking-tight tabular-nums', compact ? 'text-base' : 'text-xl')}>
-          {formatMoney(total, trip.currency)}
+          {money(summary.total)}
         </p>
         <p className="truncate text-xs tabular-nums text-zinc-500">
-          {ratio !== null
-            ? `${Math.round(ratio * 100)}% of ${formatMoney(trip.budget!, trip.currency)}`
-            : pluralize(trip.expenses.length, 'expense')}
+          {ratio !== null ? `${Math.round(ratio * 100)}% of ${money(trip.budget!)}` : pluralize(trip.expenses.length, 'expense')}
         </p>
       </div>
       {ratio !== null && <ProgressBar ratio={ratio} className={cx('h-1.5', compact ? 'mt-2' : 'mt-2.5')} />}
+      {myBalance !== undefined && (
+        <p
+          className={cx(
+            'mt-2.5 text-xs font-medium tabular-nums',
+            myBalance > 0 ? 'text-emerald-700' : myBalance < 0 ? 'text-red-600' : 'text-zinc-500',
+          )}
+        >
+          {myBalance > 0 ? `You get back ${money(myBalance)}` : myBalance < 0 ? `You owe ${money(-myBalance)}` : "You're settled up"}
+        </p>
+      )}
     </Link>
   );
 }

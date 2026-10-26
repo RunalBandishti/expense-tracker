@@ -53,4 +53,4 @@ export function tripTiming(start: string | null, end: string | null, today = tod
   return { kind: 'ongoing', totalDays, day, daysLeft: totalDays - day + 1 };
 }
 
-export const pluralize = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;
+export const pluralize = (count: number, word: string, plural = `${word}s`) => `${count} ${count === 1 ? word : plural}`;

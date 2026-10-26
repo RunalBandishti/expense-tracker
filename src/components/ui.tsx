@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
-import { Check, CloudOff, LoaderCircle, Users } from 'lucide-react';
-import type { Person } from '../lib/types';
+import { Check, ChevronDown, CloudOff, LoaderCircle, Users } from 'lucide-react';
+import { categoryOf } from '../lib/categories';
+import { currencySymbol, sanitizeAmountInput } from '../lib/money';
+import type { Category, Person } from '../lib/types';
 import type { SyncStatus } from '../state/trips';
 
 export const cx = (...classes: (string | false | null | undefined)[]) => classes.filter(Boolean).join(' ');
@@ -103,23 +105,25 @@ type SheetProps = {
   children: ReactNode;
   formId?: string;
   submitLabel?: string;
+  cancelLabel?: string;
 };
 
-export function Sheet({ title, onClose, children, formId, submitLabel = 'Save' }: SheetProps) {
+export function Sheet({ title, onClose, children, formId, submitLabel = 'Save', cancelLabel = 'Cancel' }: SheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const pressStartedOnBackdrop = useRef(false);
 
   useEffect(() => {
     const dialog = dialogRef.current!;
     dialog.showModal();
-    dialog.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+    (dialog.querySelector<HTMLElement>('[data-autofocus]') ?? dialog).focus();
     return () => dialog.close();
   }, []);
 
   return (
     <dialog
       ref={dialogRef}
-      className="sheet"
+      tabIndex={-1}
+      className="sheet outline-none"
       aria-label={title}
       onCancel={(event) => {
         event.preventDefault();
@@ -140,7 +144,7 @@ export function Sheet({ title, onClose, children, formId, submitLabel = 'Save' }
             onClick={onClose}
             className="justify-self-start rounded-full px-3 py-2 text-[15px] text-zinc-500 transition hover:text-zinc-900"
           >
-            Cancel
+            {cancelLabel}
           </button>
           <h2 className="text-[15px] font-semibold">{title}</h2>
           {formId ? (
@@ -277,7 +281,7 @@ export function SegmentedControl<T extends string>({
   );
 }
 
-export function SyncBadge({ status }: { status: SyncStatus }) {
+export function SyncBadge({ status, pendingCount = 0 }: { status: SyncStatus; pendingCount?: number }) {
   if (status === 'saving') {
     return (
       <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
@@ -290,7 +294,7 @@ export function SyncBadge({ status }: { status: SyncStatus }) {
     return (
       <span className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600">
         <CloudOff className="size-3.5" />
-        Offline · retrying
+        {pendingCount > 0 ? `Offline · ${pendingCount} unsynced` : 'Offline'}
       </span>
     );
   }
@@ -322,6 +326,71 @@ export function FieldError({ children }: { children: ReactNode }) {
   return <p className="mt-2 px-1 text-sm text-red-600">{children}</p>;
 }
 
+export function AmountInput({
+  value,
+  onChange,
+  currency,
+  autoFocus,
+  error,
+}: {
+  value: string;
+  onChange: (text: string) => void;
+  currency: string;
+  autoFocus?: boolean;
+  error?: string | null;
+}) {
+  return (
+    <label className="block text-center">
+      <span className="flex items-baseline justify-center gap-1">
+        <span className="text-[34px] font-semibold text-zinc-300 sm:text-[40px]">{currencySymbol(currency)}</span>
+        <input
+          data-autofocus={autoFocus || undefined}
+          inputMode="decimal"
+          enterKeyHint="next"
+          placeholder="0"
+          aria-label="Amount"
+          value={value}
+          onChange={(event) => onChange(sanitizeAmountInput(event.target.value))}
+          style={{ width: `${Math.max(value.length, 1) + 0.6}ch` }}
+          className="max-w-full bg-transparent text-center text-[46px] font-semibold leading-tight tracking-tight tabular-nums outline-none placeholder:text-zinc-300 sm:text-[52px]"
+        />
+      </span>
+      <span className="text-xs text-zinc-500">Amount</span>
+      {error && <FieldError>{error}</FieldError>}
+    </label>
+  );
+}
+
+export function SelectInput({
+  id,
+  value,
+  options,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="relative flex items-center">
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="appearance-none bg-transparent pr-6 text-right text-base font-medium outline-none"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown className="pointer-events-none absolute right-0 size-4 text-zinc-400" />
+    </div>
+  );
+}
+
 export function SectionLabel({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
     <div className="mb-2 flex items-baseline justify-between gap-3 px-1">
@@ -347,6 +416,20 @@ export function PageLoader() {
     <div className="grid min-h-[60dvh] place-items-center">
       <LoaderCircle className="size-6 animate-spin text-zinc-400" />
     </div>
+  );
+}
+
+export function CategoryTile({ category, size = 'md' }: { category: Category | undefined; size?: 'sm' | 'md' }) {
+  return (
+    <span
+      aria-hidden
+      className={cx(
+        'grid shrink-0 place-items-center rounded-xl bg-zinc-100',
+        size === 'md' ? 'size-10 text-lg' : 'size-8 text-base',
+      )}
+    >
+      {categoryOf(category).emoji}
+    </span>
   );
 }
 

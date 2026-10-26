@@ -1,46 +1,72 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Trash } from 'lucide-react';
+import { CATEGORIES, guessCategory } from '../lib/categories';
 import { todayISO, tripTiming } from '../lib/dates';
 import { newId } from '../lib/id';
-import { amountToInput, currencySymbol, formatMoney, parseAmount, sanitizeAmountInput } from '../lib/money';
-import { participantIds } from '../lib/split';
-import { COMMON, type Expense, type Split, type Trip } from '../lib/types';
+import { amountToInput, formatMoney, parseAmount } from '../lib/money';
+import { participantIds, splitProblem } from '../lib/split';
+import { COMMON, type Category, type Expense, type Person, type Split, type Trip } from '../lib/types';
 import { useToast } from '../state/toast';
 import { useTrips } from '../state/trips';
 import { LabelCombobox } from './LabelCombobox';
 import { SplitPicker } from './SplitPicker';
-import { Button, FieldError, FormRow, rowDateInputClass, rowInputClass, SectionLabel, Sheet } from './ui';
+import { AmountInput, Button, cx, FieldError, FormRow, rowDateInputClass, rowInputClass, SectionLabel, Sheet } from './ui';
 
 function defaultDate(trip: Trip) {
   return tripTiming(trip.startDate, trip.endDate).kind === 'past' && trip.endDate ? trip.endDate : todayISO();
 }
 
-type Props = { trip: Trip; expense?: Expense; onClose: () => void };
+function keepPositive(values: Record<string, number>, people: Person[]) {
+  return Object.fromEntries(people.filter((person) => (values[person.id] ?? 0) > 0).map((person) => [person.id, values[person.id]]));
+}
 
-export function ExpenseSheet({ trip, expense, onClose }: Props) {
-  const { updateTrip } = useTrips();
+/** Saved splits name people explicitly so adding someone to the trip later doesn't re-split past expenses. */
+function snapshotSplit(split: Split, people: Person[]): Split {
+  switch (split.mode) {
+    case 'all':
+      return { mode: 'custom', personIds: people.map((person) => person.id) };
+    case 'custom':
+      return { mode: 'custom', personIds: people.filter((person) => split.personIds.includes(person.id)).map((person) => person.id) };
+    case 'shares':
+      return { mode: 'shares', weights: keepPositive(split.weights, people) };
+    case 'percent':
+      return { mode: 'percent', percents: keepPositive(split.percents, people) };
+    case 'exact':
+      return { mode: 'exact', amounts: keepPositive(split.amounts, people) };
+  }
+}
+
+type Props = { trip: Trip; expense?: Expense; myPersonId?: string | null; onClose: () => void };
+
+export function ExpenseSheet({ trip, expense, myPersonId, onClose }: Props) {
+  const { apply } = useTrips();
   const toast = useToast();
   const formId = useId();
   const [amountText, setAmountText] = useState(expense ? amountToInput(expense.amount) : '');
   const [title, setTitle] = useState(expense?.title ?? '');
+  const [category, setCategory] = useState<Category | null>(expense?.category ?? null);
+  const [paidById, setPaidById] = useState<string | null>(() => {
+    if (expense) return expense.paidById ?? null;
+    return trip.people.some((person) => person.id === myPersonId) ? (myPersonId ?? null) : null;
+  });
   const [forId, setForId] = useState<string | null>(expense?.forId ?? null);
   const [split, setSplit] = useState<Split>(expense?.split ?? { mode: 'all' });
   const [date, setDate] = useState(expense?.date ?? defaultDate(trip));
   const [submitted, setSubmitted] = useState(false);
 
   const amount = parseAmount(amountText);
-  const splitIds = forId === COMMON ? participantIds({ forId, split }, trip.people) : [];
+  const shownCategory = category ?? guessCategory(title) ?? 'other';
   const errors = {
     amount: !amount ? 'Enter an amount' : null,
     title: !title.trim() ? 'Add a short description' : null,
     forId: !forId ? 'Choose who this expense is for' : null,
-    split: forId === COMMON && splitIds.length === 0 ? 'Pick at least one person to split with' : null,
+    split: forId === COMMON ? splitProblem(split, amount, trip.people, trip.currency) : null,
     date: !date ? 'Pick a date' : null,
   };
 
   const addPerson = (name: string) => {
     const person = { id: newId(), name };
-    updateTrip(trip.id, (current) => ({ ...current, people: [...current.people, person] }));
+    apply(trip.id, { type: 'person/add', person });
     return person.id;
   };
 
@@ -54,65 +80,38 @@ export function ExpenseSheet({ trip, expense, onClose }: Props) {
       amount,
       date,
       forId,
-      // Saved as explicit people so adding someone to the trip later doesn't re-split past expenses.
-      split: forId === COMMON ? { mode: 'custom', personIds: splitIds } : undefined,
+      split: forId === COMMON ? snapshotSplit(split, trip.people) : undefined,
+      paidById: paidById ?? undefined,
+      category: shownCategory,
       createdAt: expense?.createdAt ?? Date.now(),
     };
-    updateTrip(trip.id, (current) => ({
-      ...current,
-      expenses: expense
-        ? current.expenses.map((existing) => (existing.id === saved.id ? saved : existing))
-        : [...current.expenses, saved],
-    }));
+    apply(trip.id, { type: 'expense/upsert', expense: saved });
     onClose();
   };
 
   const handleDelete = () => {
     if (!expense) return;
-    const index = trip.expenses.findIndex((existing) => existing.id === expense.id);
-    updateTrip(trip.id, (current) => ({
-      ...current,
-      expenses: current.expenses.filter((existing) => existing.id !== expense.id),
-    }));
+    apply(trip.id, { type: 'expense/remove', id: expense.id });
     onClose();
     toast({
       message: 'Expense deleted',
-      action: {
-        label: 'Undo',
-        run: () =>
-          updateTrip(trip.id, (current) => {
-            const expenses = [...current.expenses];
-            expenses.splice(Math.min(index, expenses.length), 0, expense);
-            return { ...current, expenses };
-          }),
-      },
+      action: { label: 'Undo', run: () => apply(trip.id, { type: 'expense/upsert', expense }) },
     });
   };
 
-  const perPerson = amount && splitIds.length ? Math.floor(amount / splitIds.length) : null;
-  const evenSplit = amount !== null && splitIds.length > 0 && amount % splitIds.length === 0;
+  const equalIds = split.mode === 'all' || split.mode === 'custom' ? participantIds({ amount: 0, forId: COMMON, split }, trip.people) : [];
+  const perPerson = amount && equalIds.length ? Math.floor(amount / equalIds.length) : null;
 
   return (
     <Sheet title={expense ? 'Edit expense' : 'New expense'} onClose={onClose} formId={formId} submitLabel={expense ? 'Save' : 'Add'}>
       <form id={formId} onSubmit={handleSubmit} noValidate className="space-y-6">
-        <label className="block text-center">
-          <span className="flex items-baseline justify-center gap-1">
-            <span className="text-[34px] font-semibold text-zinc-300 sm:text-[40px]">{currencySymbol(trip.currency)}</span>
-            <input
-              data-autofocus={expense ? undefined : true}
-              inputMode="decimal"
-              enterKeyHint="next"
-              placeholder="0"
-              aria-label="Amount"
-              value={amountText}
-              onChange={(event) => setAmountText(sanitizeAmountInput(event.target.value))}
-              style={{ width: `${Math.max(amountText.length, 1) + 0.6}ch` }}
-              className="max-w-full bg-transparent text-center text-[46px] font-semibold leading-tight tracking-tight tabular-nums outline-none placeholder:text-zinc-300 sm:text-[52px]"
-            />
-          </span>
-          <span className="text-xs text-zinc-500">Amount</span>
-          {submitted && errors.amount && <FieldError>{errors.amount}</FieldError>}
-        </label>
+        <AmountInput
+          value={amountText}
+          onChange={setAmountText}
+          currency={trip.currency}
+          autoFocus={!expense}
+          error={submitted ? errors.amount : null}
+        />
 
         <div>
           <div className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
@@ -142,6 +141,44 @@ export function ExpenseSheet({ trip, expense, onClose }: Props) {
         </div>
 
         <section>
+          <SectionLabel>Category</SectionLabel>
+          <div role="radiogroup" aria-label="Category" className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1">
+            {CATEGORIES.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={shownCategory === option.id}
+                onClick={() => setCategory(option.id)}
+                className={cx(
+                  'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition',
+                  shownCategory === option.id
+                    ? 'border-zinc-900 bg-zinc-900 text-white'
+                    : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300',
+                )}
+              >
+                <span aria-hidden>{option.emoji}</span>
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <SectionLabel aside={<span className="text-xs text-zinc-400">Optional · used to settle up</span>}>Paid by</SectionLabel>
+          <LabelCombobox
+            people={trip.people}
+            value={paidById}
+            onChange={setPaidById}
+            onCreate={addPerson}
+            onClear={() => setPaidById(null)}
+            includeCommon={false}
+            label="Who paid"
+            placeholder="Who paid? Pick or type a name"
+          />
+        </section>
+
+        <section>
           <SectionLabel>For</SectionLabel>
           <LabelCombobox
             people={trip.people}
@@ -159,7 +196,7 @@ export function ExpenseSheet({ trip, expense, onClose }: Props) {
               aside={
                 perPerson !== null && (
                   <span className="text-xs font-semibold tabular-nums text-emerald-700">
-                    {evenSplit ? '' : '≈ '}
+                    {amount! % equalIds.length === 0 ? '' : '≈ '}
                     {formatMoney(perPerson, trip.currency)} each
                   </span>
                 )

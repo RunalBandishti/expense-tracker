@@ -1,12 +1,19 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
+import { readStored, removeStored, tripsCacheKey, USER_KEY, writeStored } from '../lib/storage';
 import type { User } from '../lib/types';
 
 type AuthState = { status: 'loading' } | { status: 'anonymous' } | { status: 'authenticated'; user: User };
 
 type AuthContextValue = {
   state: AuthState;
+  googleEnabled: boolean;
+  recoveryCode: string | null;
+  dismissRecoveryCode: () => void;
   authenticate: (mode: 'login' | 'signup', username: string, password: string) => Promise<void>;
+  recover: (username: string, recoveryCode: string, newPassword: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  regenerateRecoveryCode: () => Promise<void>;
   logout: () => Promise<void>;
   expireSession: () => void;
 };
@@ -21,29 +28,91 @@ export function useAuth() {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState<string | null>(null);
 
-  useEffect(() => {
-    api<{ user: User | null }>('/auth/me').then(
-      ({ user }) => setState(user ? { status: 'authenticated', user } : { status: 'anonymous' }),
-      () => setState({ status: 'anonymous' }),
-    );
-  }, []);
-
-  const authenticate = useCallback(async (mode: 'login' | 'signup', username: string, password: string) => {
-    const { user } = await api<{ user: User }>(`/auth/${mode}`, { method: 'POST', json: { username, password } });
+  const signIn = useCallback((user: User) => {
+    writeStored(USER_KEY, user);
     setState({ status: 'authenticated', user });
   }, []);
 
-  const logout = useCallback(async () => {
-    await api('/auth/logout', { method: 'POST' }).catch(() => undefined);
+  const signOut = useCallback(() => {
+    removeStored(USER_KEY);
     setState({ status: 'anonymous' });
   }, []);
 
+  // Keeps the cached user and unsynced changes so they sync after the next login.
   const expireSession = useCallback(() => setState({ status: 'anonymous' }), []);
 
+  useEffect(() => {
+    api<{ user: User | null; google: boolean }>('/auth/me').then(
+      ({ user, google }) => {
+        setGoogleEnabled(google);
+        if (user) signIn(user);
+        else signOut();
+      },
+      (err: ApiError) => {
+        // Offline: keep the last signed-in user so cached trips stay usable.
+        const cached = readStored<User>(USER_KEY);
+        if (err.status === 0 && cached) setState({ status: 'authenticated', user: cached });
+        else setState({ status: 'anonymous' });
+      },
+    );
+  }, [signIn, signOut]);
+
+  const authenticate = useCallback(
+    async (mode: 'login' | 'signup', username: string, password: string) => {
+      const result = await api<{ user: User; recoveryCode?: string }>(`/auth/${mode}`, {
+        method: 'POST',
+        json: { username, password },
+      });
+      setRecoveryCode(result.recoveryCode ?? null);
+      signIn(result.user);
+    },
+    [signIn],
+  );
+
+  const recover = useCallback(
+    async (username: string, code: string, newPassword: string) => {
+      const result = await api<{ user: User; recoveryCode: string }>('/auth/recover', {
+        method: 'POST',
+        json: { username, recoveryCode: code, newPassword },
+      });
+      setRecoveryCode(result.recoveryCode);
+      signIn(result.user);
+    },
+    [signIn],
+  );
+
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await api('/auth/password', { method: 'POST', json: { currentPassword, newPassword } });
+  }, []);
+
+  const regenerateRecoveryCode = useCallback(async () => {
+    const result = await api<{ recoveryCode: string }>('/auth/recovery-code', { method: 'POST' });
+    setRecoveryCode(result.recoveryCode);
+  }, []);
+
+  const logout = useCallback(async () => {
+    if (state.status === 'authenticated') removeStored(tripsCacheKey(state.user.id));
+    await api('/auth/logout', { method: 'POST' }).catch(() => undefined);
+    signOut();
+  }, [state, signOut]);
+
   const value = useMemo(
-    () => ({ state, authenticate, logout, expireSession }),
-    [state, authenticate, logout, expireSession],
+    () => ({
+      state,
+      googleEnabled,
+      recoveryCode,
+      dismissRecoveryCode: () => setRecoveryCode(null),
+      authenticate,
+      recover,
+      changePassword,
+      regenerateRecoveryCode,
+      logout,
+      expireSession,
+    }),
+    [state, googleEnabled, recoveryCode, authenticate, recover, changePassword, regenerateRecoveryCode, logout, expireSession],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

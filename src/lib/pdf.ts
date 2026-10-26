@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import { autoTable, type UserOptions } from 'jspdf-autotable';
 import interRegularUrl from '@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf?url';
 import interBoldUrl from '@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf?url';
+import { CATEGORIES, categoryOf } from './categories';
 import { formatDateRange, formatLongDate, formatShortDate, pluralize, todayISO, tripTiming } from './dates';
 import { formatMoney } from './money';
 import { participantIds, peopleLabel, perDayStat, summarizeTrip } from './split';
@@ -63,6 +64,16 @@ export async function exportTripPdf(trip: Trip) {
   const summary = summarizeTrip(trip);
   const timing = tripTiming(trip.startDate, trip.endDate);
   const nameOf = (id: string) => trip.people.find((person) => person.id === id)?.name ?? 'Removed person';
+  const splitDescription = (expense: Expense) => {
+    if (expense.forId !== COMMON) return nameOf(expense.forId);
+    const ids = participantIds(expense, trip.people);
+    const split = expense.split;
+    if (ids.length === 0) return 'Nobody yet';
+    if (split?.mode === 'shares') return ids.map((id) => `${nameOf(id)} ×${split.weights[id]}`).join(', ');
+    if (split?.mode === 'percent') return ids.map((id) => `${nameOf(id)} ${split.percents[id]}%`).join(', ');
+    if (split?.mode === 'exact') return ids.map((id) => `${nameOf(id)} ${money(split.amounts[id])}`).join(', ');
+    return ids.length === trip.people.length ? `Everyone (${ids.length})` : ids.map(nameOf).join(', ');
+  };
   let y = MARGIN;
 
   const setText = (size: number, weight: 'normal' | 'bold', color: Rgb) => {
@@ -180,46 +191,107 @@ export async function exportTripPdf(trip: Trip) {
     y += 10;
   }
 
+  const hasPayers = summary.paidTotal > 0;
   if (trip.people.length > 0) {
     sectionTitle('Split summary');
+    const balanceText = (balance: number) =>
+      balance === 0 ? 'Settled' : `${balance > 0 ? 'Gets back' : 'Owes'} ${money(Math.abs(balance))}`;
     table({
-      head: [['PERSON', 'PERSONAL', 'SHARED', 'TOTAL', 'SHARE OF TRIP']],
-      body: summary.people.map(({ person, personal, shared, total }) => [
+      head: [['PERSON', 'PERSONAL', 'SHARED', 'TOTAL SHARE', ...(hasPayers ? ['PAID', 'BALANCE'] : ['OF TRIP'])]],
+      body: summary.people.map(({ person, personal, shared, total, paid, balance }) => [
         person.name,
         money(personal),
         money(shared),
         money(total),
-        summary.total ? `${((total / summary.total) * 100).toFixed(1)}%` : '—',
+        ...(hasPayers
+          ? [money(paid), balanceText(balance)]
+          : [summary.total ? `${((total / summary.total) * 100).toFixed(1)}%` : '—']),
       ]),
-      foot: [['Total', money(summary.personalTotal), money(summary.sharedTotal - summary.unassigned), money(summary.total - summary.unassigned), '']],
+      foot: [
+        [
+          'Total',
+          money(summary.personalTotal),
+          money(summary.sharedTotal - summary.unassigned),
+          money(summary.total - summary.unassigned),
+          ...(hasPayers ? [money(summary.paidTotal), ''] : ['']),
+        ],
+      ],
       columnStyles: {
         1: { halign: 'right' },
         2: { halign: 'right' },
         3: { halign: 'right', fontStyle: 'bold' },
-        4: { halign: 'right', textColor: MUTED },
+        4: { halign: 'right', textColor: hasPayers ? INK : MUTED },
+        5: { halign: 'right', fontStyle: 'bold' },
       },
     });
   }
 
+  if (hasPayers) {
+    sectionTitle('Settle up');
+    if (summary.transfers.length) {
+      table({
+        head: [['WHO PAYS', 'TO', 'AMOUNT']],
+        body: summary.transfers.map((transfer) => [nameOf(transfer.fromId), nameOf(transfer.toId), money(transfer.amount)]),
+        columnStyles: { 2: { halign: 'right', fontStyle: 'bold' } },
+      });
+    } else {
+      setText(10, 'normal', GREEN);
+      doc.text('Everyone is settled up.', MARGIN, y + 12);
+      y += 40;
+    }
+  }
+
+  if (trip.settlements.length) {
+    sectionTitle('Payments made');
+    table({
+      head: [['DATE', 'FROM', 'TO', 'AMOUNT']],
+      body: [...trip.settlements]
+        .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt)
+        .map((settlement) => [
+          formatShortDate(settlement.date),
+          nameOf(settlement.fromId),
+          nameOf(settlement.toId),
+          money(settlement.amount),
+        ]),
+      columnStyles: { 0: { cellWidth: 56, textColor: MUTED }, 3: { halign: 'right' } },
+    });
+  }
+
+  const categoryTotals = CATEGORIES.map((category) => ({
+    label: category.label,
+    amount: trip.expenses
+      .filter((expense) => (expense.category ?? 'other') === category.id)
+      .reduce((sum, expense) => sum + expense.amount, 0),
+  })).filter((category) => category.amount > 0);
+  sectionTitle('Spending by category');
+  table({
+    head: [['CATEGORY', 'AMOUNT', 'OF TOTAL']],
+    body: categoryTotals
+      .sort((a, b) => b.amount - a.amount)
+      .map((category) => [category.label, money(category.amount), `${((category.amount / summary.total) * 100).toFixed(1)}%`]),
+    columnStyles: { 1: { halign: 'right', fontStyle: 'bold' }, 2: { halign: 'right', textColor: MUTED } },
+  });
+
   sectionTitle('All expenses');
   table({
-    head: [['DATE', 'EXPENSE', 'FOR', 'SPLIT BETWEEN', 'AMOUNT']],
-    body: [...trip.expenses].sort(byDate).map((expense) => {
-      const isShared = expense.forId === COMMON;
-      const ids = participantIds(expense, trip.people);
-      const splitText = !isShared
-        ? '—'
-        : ids.length > 0 && ids.length === trip.people.length
-          ? `Everyone (${ids.length})`
-          : ids.map(nameOf).join(', ') || 'Nobody yet';
-      return [formatShortDate(expense.date), expense.title, isShared ? 'Common' : nameOf(expense.forId), splitText, money(expense.amount)];
-    }),
-    foot: [['', 'Total', '', '', money(summary.total)]],
+    head: [['DATE', 'EXPENSE', 'CATEGORY', 'PAID BY', 'FOR / SPLIT', 'AMOUNT']],
+    body: [...trip.expenses]
+      .sort(byDate)
+      .map((expense) => [
+        formatShortDate(expense.date),
+        expense.title,
+        categoryOf(expense.category).label,
+        expense.paidById ? nameOf(expense.paidById) : '—',
+        splitDescription(expense),
+        money(expense.amount),
+      ]),
+    foot: [['', 'Total', '', '', '', money(summary.total)]],
     columnStyles: {
-      0: { cellWidth: 56, textColor: MUTED },
-      2: { cellWidth: 80 },
-      3: { cellWidth: 130, textColor: MUTED },
-      4: { cellWidth: 80, halign: 'right', fontStyle: 'bold' },
+      0: { cellWidth: 48, textColor: MUTED },
+      2: { cellWidth: 62, textColor: MUTED },
+      3: { cellWidth: 62 },
+      4: { cellWidth: 118, textColor: MUTED },
+      5: { cellWidth: 72, halign: 'right', fontStyle: 'bold' },
     },
   });
 

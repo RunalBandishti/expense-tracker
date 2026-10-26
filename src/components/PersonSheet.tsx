@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Trash } from 'lucide-react';
 import { pluralize } from '../lib/dates';
-import { countExpensesUsingPerson, findPersonByName, isReservedName } from '../lib/split';
+import { countUsesOfPerson, findPersonByName, isReservedName } from '../lib/split';
 import type { Person, Trip } from '../lib/types';
 import { useToast } from '../state/toast';
 import { useTrips } from '../state/trips';
@@ -10,13 +10,13 @@ import { Avatar, Button, FieldError, FormRow, rowInputClass, Sheet } from './ui'
 type Props = { trip: Trip; person: Person; onClose: () => void };
 
 export function PersonSheet({ trip, person, onClose }: Props) {
-  const { updateTrip } = useTrips();
+  const { apply } = useTrips();
   const toast = useToast();
   const formId = useId();
   const [name, setName] = useState(person.name);
   const [submitted, setSubmitted] = useState(false);
 
-  const usedIn = countExpensesUsingPerson(trip, person.id);
+  const uses = countUsesOfPerson(trip, person.id);
   const trimmed = name.trim();
   const namesake = findPersonByName(trip.people, trimmed);
   const error = !trimmed
@@ -29,18 +29,12 @@ export function PersonSheet({ trip, person, onClose }: Props) {
     event.preventDefault();
     setSubmitted(true);
     if (error) return;
-    updateTrip(trip.id, (current) => ({
-      ...current,
-      people: current.people.map((existing) => (existing.id === person.id ? { ...existing, name: trimmed } : existing)),
-    }));
+    apply(trip.id, { type: 'person/update', id: person.id, name: trimmed });
     onClose();
   };
 
   const handleRemove = () => {
-    updateTrip(trip.id, (current) => ({
-      ...current,
-      people: current.people.filter((existing) => existing.id !== person.id),
-    }));
+    apply(trip.id, { type: 'person/remove', id: person.id });
     onClose();
     toast({ message: `Removed ${person.name}` });
   };
@@ -70,13 +64,14 @@ export function PersonSheet({ trip, person, onClose }: Props) {
           Save
         </Button>
         <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-          <Button variant="danger" className="w-full" disabled={usedIn > 0} onClick={handleRemove}>
+          <Button variant="danger" className="w-full" disabled={uses > 0} onClick={handleRemove}>
             <Trash className="size-4" />
             Remove from trip
           </Button>
-          {usedIn > 0 && (
+          {uses > 0 && (
             <p className="mt-2 text-center text-xs text-zinc-500">
-              {person.name} is on {pluralize(usedIn, 'expense')}. Change or delete those first.
+              {person.name} is on {pluralize(uses, 'expense or payment', 'expenses or payments')}. Change or delete
+              those first.
             </p>
           )}
         </div>

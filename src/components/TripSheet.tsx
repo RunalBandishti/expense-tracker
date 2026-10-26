@@ -1,19 +1,30 @@
 import { useId, useState, type FormEvent } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { addDays, daysBetween, pluralize, todayISO } from '../lib/dates';
 import { newId } from '../lib/id';
 import { amountToInput, CURRENCIES, currencySymbol, parseAmount, sanitizeAmountInput } from '../lib/money';
 import { findPersonByName, isReservedName } from '../lib/split';
 import type { Person, Trip } from '../lib/types';
 import { useTrips } from '../state/trips';
-import { Avatar, Button, cx, FieldError, FormRow, rowDateInputClass, rowInputClass, SectionLabel, Sheet } from './ui';
+import {
+  Avatar,
+  Button,
+  cx,
+  FieldError,
+  FormRow,
+  rowDateInputClass,
+  rowInputClass,
+  SectionLabel,
+  SelectInput,
+  Sheet,
+} from './ui';
 
 const EMOJIS = ['✈️', '🏖️', '🏔️', '🏕️', '🚗', '🚆', '🛳️', '🎒', '🏨', '🍽️', '🎉', '💼'];
 
 type Props = { trip?: Trip; onClose: () => void; onCreated?: (trip: Trip) => void };
 
 export function TripSheet({ trip, onClose, onCreated }: Props) {
-  const { createTrip, updateTrip } = useTrips();
+  const { createTrip, apply } = useTrips();
   const formId = useId();
   const today = todayISO();
   const [name, setName] = useState(trip?.name ?? '');
@@ -45,11 +56,8 @@ export function TripSheet({ trip, onClose, onCreated }: Props) {
     setSubmitted(true);
     if (Object.values(errors).some(Boolean)) return;
     const details = { name: name.trim(), emoji, startDate, endDate, budget, currency };
-    if (trip) {
-      updateTrip(trip.id, (current) => ({ ...current, ...details }));
-    } else {
-      onCreated?.(createTrip({ ...details, people: addPendingPerson(people) }));
-    }
+    if (trip) apply(trip.id, { type: 'trip/update', details });
+    else onCreated?.(createTrip(details, addPendingPerson(people)));
     onClose();
   };
 
@@ -141,21 +149,12 @@ export function TripSheet({ trip, onClose, onCreated }: Props) {
               />
             </FormRow>
             <FormRow label="Currency" htmlFor={`${formId}-currency`}>
-              <div className="relative flex items-center">
-                <select
-                  id={`${formId}-currency`}
-                  value={currency}
-                  onChange={(event) => setCurrency(event.target.value)}
-                  className="appearance-none bg-transparent pr-6 text-right text-base font-medium outline-none"
-                >
-                  {CURRENCIES.map((code) => (
-                    <option key={code} value={code}>
-                      {code} ({currencySymbol(code)})
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-0 size-4 text-zinc-400" />
-              </div>
+              <SelectInput
+                id={`${formId}-currency`}
+                value={currency}
+                onChange={setCurrency}
+                options={CURRENCIES.map((code) => ({ value: code, label: `${code} (${currencySymbol(code)})` }))}
+              />
             </FormRow>
           </div>
           {submitted && errors.budget && <FieldError>{errors.budget}</FieldError>}

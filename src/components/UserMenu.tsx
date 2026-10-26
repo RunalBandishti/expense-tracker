@@ -1,7 +1,11 @@
-import { LogOut, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
+import { useState } from 'react';
+import { KeyRound, LifeBuoy, LogOut, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react';
 import { setThemePreference, useThemePreference, type ThemePreference } from '../lib/theme';
 import { useAuth } from '../state/auth';
-import { cx, Menu, segmentClass } from './ui';
+import { useToast } from '../state/toast';
+import { useTrips } from '../state/trips';
+import { PasswordSheet } from './AccountSheets';
+import { cx, Menu, segmentClass, type MenuItem } from './ui';
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; Icon: LucideIcon }[] = [
   { value: 'light', label: 'Light', Icon: Sun },
@@ -34,22 +38,51 @@ function ThemeSwitcher() {
 }
 
 export function UserMenu({ placement = 'down', showName = false }: { placement?: 'down' | 'up'; showName?: boolean }) {
-  const { state, logout } = useAuth();
-  const username = state.status === 'authenticated' ? state.user.username : '';
+  const { state, logout, regenerateRecoveryCode } = useAuth();
+  const { pendingCount } = useTrips();
+  const toast = useToast();
+  const [changingPassword, setChangingPassword] = useState(false);
+  const user = state.status === 'authenticated' ? state.user : null;
+
+  const items: MenuItem[] = [];
+  if (user?.provider === 'password') {
+    items.push(
+      { label: 'Change password', icon: <KeyRound className="size-4" />, onSelect: () => setChangingPassword(true) },
+      {
+        label: 'New recovery code',
+        icon: <LifeBuoy className="size-4" />,
+        onSelect: () => {
+          if (!window.confirm('Make a new recovery code? Your old one will stop working.')) return;
+          regenerateRecoveryCode().catch((err: Error) => toast({ message: err.message, tone: 'error' }));
+        },
+      },
+    );
+  }
+  items.push({
+    label: 'Log out',
+    icon: <LogOut className="size-4" />,
+    onSelect: () => {
+      if (pendingCount > 0 && !window.confirm(`${pendingCount} changes haven't synced yet. Log out and lose them?`)) return;
+      void logout();
+    },
+  });
 
   return (
-    <Menu
-      label="Account"
-      heading={`Signed in as ${username}`}
-      content={<ThemeSwitcher />}
-      placement={placement}
-      items={[{ label: 'Log out', icon: <LogOut className="size-4" />, onSelect: () => void logout() }]}
-      triggerClassName="flex min-w-0 items-center gap-2.5 rounded-full transition hover:opacity-80"
-    >
-      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-zinc-900 text-sm font-semibold text-white">
-        {username.charAt(0).toUpperCase()}
-      </span>
-      {showName && <span className="truncate text-sm font-medium">{username}</span>}
-    </Menu>
+    <>
+      <Menu
+        label="Account"
+        heading={`Signed in as ${user?.username ?? ''}`}
+        content={<ThemeSwitcher />}
+        placement={placement}
+        items={items}
+        triggerClassName="flex min-w-0 items-center gap-2.5 rounded-full transition hover:opacity-80"
+      >
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-zinc-900 text-sm font-semibold text-white">
+          {user?.username.charAt(0).toUpperCase()}
+        </span>
+        {showName && <span className="truncate text-sm font-medium">{user?.username}</span>}
+      </Menu>
+      {changingPassword && <PasswordSheet onClose={() => setChangingPassword(false)} />}
+    </>
   );
 }

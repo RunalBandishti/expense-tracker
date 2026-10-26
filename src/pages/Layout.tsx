@@ -9,7 +9,7 @@ import { useIsDesktop } from '../lib/useMediaQuery';
 import { useTrips } from '../state/trips';
 
 function Sidebar() {
-  const { trips, syncStatus } = useTrips();
+  const { trips, syncStatus, pendingCount } = useTrips();
   const activeTripId = useMatch('/trips/:tripId')?.params.tripId;
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
@@ -36,7 +36,7 @@ function Sidebar() {
       </nav>
       <footer className="flex items-center justify-between gap-3 border-t border-zinc-200/80 px-5 py-4">
         <UserMenu placement="up" showName />
-        <SyncBadge status={syncStatus} />
+        <SyncBadge status={syncStatus} pendingCount={pendingCount} />
       </footer>
       {creating && (
         <TripSheet onClose={() => setCreating(false)} onCreated={(trip) => navigate(`/trips/${trip.id}`)} />
