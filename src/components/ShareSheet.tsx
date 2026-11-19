@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { Copy, Globe, MessageCircle, Share2, UserPlus, X } from 'lucide-react';
 import { ApiError } from '../lib/api';
 import { canNativeShare, copyText, nativeShare, whatsappUrl } from '../lib/share';
@@ -6,7 +6,7 @@ import { tripSummaryText } from '../lib/shareText';
 import type { Trip } from '../lib/types';
 import { useToast } from '../state/toast';
 import { useTrips } from '../state/trips';
-import { Avatar, Button, Sheet } from './ui';
+import { Avatar, Button, FormRow, Sheet, Switch } from './ui';
 
 function LinkBox({ url, label, onTurnOff }: { url: string; label: string; onTurnOff?: () => void }) {
   const toast = useToast();
@@ -59,10 +59,18 @@ export function ShareSheet({ trip, onClose, onChooseIdentity }: Props) {
   const { user, runAction } = useTrips();
   const toast = useToast();
   const [busy, setBusy] = useState<string | null>(null);
+  const [includeExpenses, setIncludeExpenses] = useState(false);
+  const [includeCategories, setIncludeCategories] = useState(false);
+  const toggleId = useId();
   const isOwner = trip.ownerId === user.id;
   const liveLink = trip.shareToken ? `${window.location.origin}/s/${trip.shareToken}` : null;
   const inviteLink = trip.inviteToken ? `${window.location.origin}/join/${trip.inviteToken}` : null;
-  const summary = tripSummaryText(trip, { liveLink: liveLink ?? undefined, origin: window.location.origin });
+  const summary = tripSummaryText(trip, {
+    liveLink: liveLink ?? undefined,
+    origin: window.location.origin,
+    includeExpenses,
+    includeCategories,
+  });
   const me = trip.members.find((member) => member.userId === user.id);
   const myPerson = trip.people.find((person) => person.id === me?.personId);
 
@@ -86,6 +94,16 @@ export function ShareSheet({ trip, onClose, onChooseIdentity }: Props) {
           title="Send a summary"
           description="Totals, each person's share and who pays whom, ready for your group chat."
         >
+          {trip.expenses.length > 0 && (
+            <div className="mb-3 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
+              <FormRow label="Include expenses" htmlFor={`${toggleId}-expenses`}>
+                <Switch id={`${toggleId}-expenses`} checked={includeExpenses} onChange={setIncludeExpenses} />
+              </FormRow>
+              <FormRow label="Include category totals" htmlFor={`${toggleId}-categories`}>
+                <Switch id={`${toggleId}-categories`} checked={includeCategories} onChange={setIncludeCategories} />
+              </FormRow>
+            </div>
+          )}
           <div className="rounded-2xl border border-zinc-200 bg-white p-3">
             <pre className="max-h-40 overflow-y-auto whitespace-pre-wrap rounded-xl bg-zinc-100 px-3 py-2.5 font-sans text-sm text-zinc-700">
               {summary}

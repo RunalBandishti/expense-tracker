@@ -5,6 +5,8 @@ import { COMMON, type Expense, type Person, type Split, type Trip } from './type
 
 export const tripTotal = (trip: Trip) => trip.expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
+export const byDate = (a: Expense, b: Expense) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt;
+
 export function findPersonByName(people: Person[], name: string) {
   const needle = name.trim().toLowerCase();
   return people.find((person) => person.name.toLowerCase() === needle);

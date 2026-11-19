@@ -382,6 +382,26 @@ export function FormRow({ label, htmlFor, children }: { label: string; htmlFor: 
   );
 }
 
+export function Switch({ id, checked, onChange }: { id: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return (
+    <button
+      id={id}
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={cx('relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors', checked ? 'bg-emerald-600' : 'bg-zinc-300')}
+    >
+      <span
+        className={cx(
+          'absolute left-0.5 top-0.5 size-[27px] rounded-full bg-[#fff] shadow-sm transition-transform',
+          checked && 'translate-x-5',
+        )}
+      />
+    </button>
+  );
+}
+
 export const rowInputClass =
   'w-full min-w-0 bg-transparent text-right text-base font-medium outline-none placeholder:font-normal placeholder:text-zinc-400';
 

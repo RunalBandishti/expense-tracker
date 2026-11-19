@@ -17,6 +17,7 @@ import {
   SectionLabel,
   SelectInput,
   Sheet,
+  Switch,
 } from './ui';
 
 const EMOJIS = ['💰', '✈️', '🏠', '🎉', '🍽️', '🛒', '💼', '🚗', '🏖️', '💍', '🎓', '🎁'];
@@ -124,24 +125,7 @@ export function TripSheet({ trip, onClose, onCreated }: Props) {
           </SectionLabel>
           <div className="divide-y divide-zinc-100 rounded-2xl border border-zinc-200 bg-white">
             <FormRow label="Set dates" htmlFor={`${formId}-dates`}>
-              <button
-                id={`${formId}-dates`}
-                type="button"
-                role="switch"
-                aria-checked={hasDates}
-                onClick={() => setHasDates((enabled) => !enabled)}
-                className={cx(
-                  'relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors',
-                  hasDates ? 'bg-emerald-600' : 'bg-zinc-300',
-                )}
-              >
-                <span
-                  className={cx(
-                    'absolute left-0.5 top-0.5 size-[27px] rounded-full bg-[#fff] shadow-sm transition-transform',
-                    hasDates && 'translate-x-5',
-                  )}
-                />
-              </button>
+              <Switch id={`${formId}-dates`} checked={hasDates} onChange={setHasDates} />
             </FormRow>
             {hasDates && (
               <>

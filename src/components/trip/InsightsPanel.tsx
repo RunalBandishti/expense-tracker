@@ -1,4 +1,4 @@
-import { barColor, categoryIdOf, tripCategories } from '../../lib/categories';
+import { barColor, categoryTotals } from '../../lib/categories';
 import { addDays, daysBetween, formatShortDate, parseISODate } from '../../lib/dates';
 import { formatMoney } from '../../lib/money';
 import { categorySummaries, type Transfer } from '../../lib/split';
@@ -30,16 +30,7 @@ export function InsightsPanel({ trip, onManageCategories, onSettleCategory }: Pr
 
   const money = (minor: number) => formatMoney(minor, trip.currency);
   const total = trip.expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const byCategory = tripCategories(trip)
-    .map((category) => ({
-      ...category,
-      bar: barColor(trip, category.id),
-      amount: trip.expenses
-        .filter((expense) => categoryIdOf(trip, expense.category) === category.id)
-        .reduce((sum, expense) => sum + expense.amount, 0),
-    }))
-    .filter((category) => category.amount > 0)
-    .sort((a, b) => b.amount - a.amount);
+  const byCategory = categoryTotals(trip).map((category) => ({ ...category, bar: barColor(trip, category.id) }));
   const owedByCategory = new Map(onSettleCategory ? categorySummaries(trip).map(({ category, owed }) => [category.id, owed]) : []);
 
   const days = chartDays(trip).map((date) => ({

@@ -40,6 +40,18 @@ export function categoryOf(trip: WithCategories, id: string | undefined) {
   return tripCategories(trip).find((category) => category.id === effectiveId) ?? DEFAULT_CATEGORIES[DEFAULT_CATEGORIES.length - 1];
 }
 
+export function categoryTotals(trip: Pick<Trip, 'categories' | 'expenses'>) {
+  return tripCategories(trip)
+    .map((category) => ({
+      ...category,
+      amount: trip.expenses
+        .filter((expense) => categoryIdOf(trip, expense.category) === category.id)
+        .reduce((sum, expense) => sum + expense.amount, 0),
+    }))
+    .filter((category) => category.amount > 0)
+    .sort((a, b) => b.amount - a.amount);
+}
+
 export function barColor(trip: WithCategories, id: string) {
   if (id === OTHER_CATEGORY) return 'bg-zinc-400';
   const index = tripCategories(trip)

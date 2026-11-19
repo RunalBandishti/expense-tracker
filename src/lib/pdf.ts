@@ -2,10 +2,10 @@ import { jsPDF } from 'jspdf';
 import { autoTable, type UserOptions } from 'jspdf-autotable';
 import interRegularUrl from '@expo-google-fonts/inter/400Regular/Inter_400Regular.ttf?url';
 import interBoldUrl from '@expo-google-fonts/inter/700Bold/Inter_700Bold.ttf?url';
-import { categoryIdOf, categoryOf, tripCategories } from './categories';
+import { categoryOf, categoryTotals } from './categories';
 import { formatDateRange, formatLongDate, formatShortDate, pluralize, todayISO, tripTiming } from './dates';
 import { formatMoney } from './money';
-import { participantIds, peopleLabel, perDayStat, summarizeTrip } from './split';
+import { byDate, participantIds, peopleLabel, perDayStat, summarizeTrip } from './split';
 import { COMMON, type Expense, type Trip } from './types';
 
 type Rgb = [number, number, number];
@@ -46,8 +46,6 @@ const slugify = (text: string) =>
     .replace(/[^\w\s-]/g, '')
     .trim()
     .replace(/[\s_]+/g, '-');
-
-const byDate = (a: Expense, b: Expense) => a.date.localeCompare(b.date) || a.createdAt - b.createdAt;
 
 export async function exportTripPdf(trip: Trip) {
   const [regular, bold] = await loadFonts();
@@ -258,20 +256,14 @@ export async function exportTripPdf(trip: Trip) {
     });
   }
 
-  const categoryTotals = tripCategories(trip)
-    .map((category) => ({
-      label: category.label,
-      amount: trip.expenses
-        .filter((expense) => categoryIdOf(trip, expense.category) === category.id)
-        .reduce((sum, expense) => sum + expense.amount, 0),
-    }))
-    .filter((category) => category.amount > 0);
   sectionTitle('Spending by category');
   table({
     head: [['CATEGORY', 'AMOUNT', 'OF TOTAL']],
-    body: categoryTotals
-      .sort((a, b) => b.amount - a.amount)
-      .map((category) => [category.label, money(category.amount), `${((category.amount / summary.total) * 100).toFixed(1)}%`]),
+    body: categoryTotals(trip).map((category) => [
+      category.label,
+      money(category.amount),
+      `${((category.amount / summary.total) * 100).toFixed(1)}%`,
+    ]),
     columnStyles: { 1: { halign: 'right', fontStyle: 'bold' }, 2: { halign: 'right', textColor: MUTED } },
   });
 

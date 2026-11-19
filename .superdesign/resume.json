@@ -1,0 +1,46 @@
+{
+  "project": {
+    "projectId": "0446cc03-a05c-4762-b560-70557c231133",
+    "title": "Expense Manager — Fun Redesign",
+    "canvas": "https://superdesign.dev/teams/865dab83-0090-479b-aabc-be23d32af13a/projects/0446cc03-a05c-4762-b560-70557c231133"
+  },
+  "brandAssets": {
+    "logo": {
+      "assetKey": "public-logo.svg",
+      "url": "https://vgbujcuwptvheqijyjbe.supabase.co/storage/v1/object/public/hmac-uploads/projects/0446cc03-a05c-4762-b560-70557c231133/brand-assets/public-logo.svg/logo.svg"
+    }
+  },
+  "targets": [
+    {
+      "target": "/ (Events home)",
+      "kind": "existing-ui",
+      "baselineDraftId": "7d2a9819-6778-41f6-8b8a-558874ceacd5",
+      "branches": [
+        {
+          "id": "beb58097-45a6-445c-baa0-eea77137ae82",
+          "name": "Vibrant & Alive Events Dashboard"
+        },
+        {
+          "id": "94b7e970-1195-4853-a153-2f96308be6d2",
+          "name": "Expense Manager - Bold Sticker Edition"
+        },
+        {
+          "id": "ceea5319-f6f8-4681-abf8-20f8ee7535dc",
+          "name": "Warm & Friendly Expense Dashboard"
+        }
+      ],
+      "activeDraftId": null,
+      "contextFiles": [
+        ".superdesign/design-system.md",
+        "src/pages/TripsPage.tsx",
+        "src/pages/Layout.tsx",
+        "src/components/TripCard.tsx",
+        "src/components/ui.tsx",
+        "src/index.css"
+      ],
+      "referenceIds": [
+        "public-logo.svg"
+      ]
+    }
+  ]
+}
