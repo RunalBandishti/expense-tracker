@@ -20,6 +20,7 @@ const isAmount = (value: unknown, min = 1) =>
 const isNumberIn = (value: unknown, max: number) => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max;
 const isRecordOf = (value: unknown, check: (entry: unknown) => boolean) =>
   isObject(value) && Object.keys(value).length <= 500 && Object.entries(value).every(([key, entry]) => ID_PATTERN.test(key) && check(entry));
+const isIdList = (value: unknown) => Array.isArray(value) && value.length <= 500 && value.every(isId);
 
 function isSplit(value: unknown) {
   if (!isObject(value)) return false;
@@ -27,7 +28,7 @@ function isSplit(value: unknown) {
     case 'all':
       return true;
     case 'custom':
-      return Array.isArray(value.personIds) && value.personIds.length <= 500 && value.personIds.every(isId);
+      return isIdList(value.personIds);
     case 'shares':
       return isRecordOf(value.weights, (weight) => isNumberIn(weight, 1e6));
     case 'percent':
@@ -115,6 +116,9 @@ function isValidOp(op: unknown, userId: string) {
       return isId(op.id);
     case 'expense/upsert':
       return isExpense(op.expense);
+    case 'expense/archive':
+    case 'expense/unarchive':
+      return isIdList(op.ids);
     case 'settlement/add':
       return isSettlement(op.settlement);
     case 'member/claim':

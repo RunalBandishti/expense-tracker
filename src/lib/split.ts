@@ -221,7 +221,7 @@ function splitIncludes(split: Split | undefined, personId: string) {
 }
 
 export function countUsesOfPerson(trip: Trip, personId: string) {
-  const expenses = trip.expenses.filter(
+  const expenses = [...trip.expenses, ...(trip.archivedExpenses ?? [])].filter(
     (expense) => expense.forId === personId || expense.paidById === personId || splitIncludes(expense.split, personId),
   ).length;
   const payments = trip.settlements.filter((settlement) => settlement.fromId === personId || settlement.toId === personId).length;

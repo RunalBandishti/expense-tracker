@@ -62,6 +62,8 @@ export type Trip = {
   currency: string;
   people: Person[];
   expenses: Expense[];
+  /** Left out of totals and splits until restored. */
+  archivedExpenses?: Expense[];
   settlements: Settlement[];
   /** Missing on trips created before categories were editable; those use the defaults. */
   categories?: CategoryDef[];

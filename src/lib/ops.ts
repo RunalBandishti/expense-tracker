@@ -12,6 +12,8 @@ export type Op =
   | { type: 'person/remove'; id: string }
   | { type: 'expense/upsert'; expense: Expense }
   | { type: 'expense/remove'; id: string }
+  | { type: 'expense/archive'; ids: string[] }
+  | { type: 'expense/unarchive'; ids: string[] }
   | { type: 'settlement/add'; settlement: Settlement }
   | { type: 'settlement/remove'; id: string }
   | { type: 'member/claim'; userId: string; personId: string | null }
@@ -26,6 +28,12 @@ function pickDetails(details: Partial<TripDetails>) {
   const picked: Partial<Record<keyof TripDetails, unknown>> = {};
   for (const key of DETAIL_KEYS) if (key in details) picked[key] = details[key];
   return picked as Partial<TripDetails>;
+}
+
+function moveExpenses(from: Expense[], to: Expense[], ids: string[]) {
+  const moving = from.filter((expense) => ids.includes(expense.id));
+  if (moving.length === 0) return null;
+  return { from: from.filter((expense) => !ids.includes(expense.id)), to: [...to, ...moving] };
 }
 
 export function applyOp(trip: Trip | null, op: Op): Trip | null {
@@ -51,16 +59,28 @@ export function applyOp(trip: Trip | null, op: Op): Trip | null {
         members: trip.members.map((member) => (member.personId === op.id ? { ...member, personId: undefined } : member)),
       };
     case 'expense/upsert': {
+      const replace = (expense: Expense) => (expense.id === op.expense.id ? op.expense : expense);
+      // An edit can arrive after another device archived the expense; it stays archived.
+      if (trip.archivedExpenses?.some((expense) => expense.id === op.expense.id)) {
+        return { ...trip, archivedExpenses: trip.archivedExpenses.map(replace) };
+      }
       const exists = trip.expenses.some((expense) => expense.id === op.expense.id);
-      return {
-        ...trip,
-        expenses: exists
-          ? trip.expenses.map((expense) => (expense.id === op.expense.id ? op.expense : expense))
-          : [...trip.expenses, op.expense],
-      };
+      return { ...trip, expenses: exists ? trip.expenses.map(replace) : [...trip.expenses, op.expense] };
     }
     case 'expense/remove':
-      return { ...trip, expenses: trip.expenses.filter((expense) => expense.id !== op.id) };
+      return {
+        ...trip,
+        expenses: trip.expenses.filter((expense) => expense.id !== op.id),
+        archivedExpenses: trip.archivedExpenses?.filter((expense) => expense.id !== op.id),
+      };
+    case 'expense/archive': {
+      const moved = moveExpenses(trip.expenses, trip.archivedExpenses ?? [], op.ids);
+      return moved ? { ...trip, expenses: moved.from, archivedExpenses: moved.to } : trip;
+    }
+    case 'expense/unarchive': {
+      const moved = moveExpenses(trip.archivedExpenses ?? [], trip.expenses, op.ids);
+      return moved ? { ...trip, archivedExpenses: moved.from, expenses: moved.to } : trip;
+    }
     case 'settlement/add':
       return trip.settlements.some((settlement) => settlement.id === op.settlement.id)
         ? trip

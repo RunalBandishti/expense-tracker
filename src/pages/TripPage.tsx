@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ChevronLeft, Ellipsis, FileDown, LoaderCircle, LogOut, Pencil, Plus, Share2, Tags, Trash, UserRound } from 'lucide-react';
+import { ArchivedSheet } from '../components/ArchivedSheet';
 import { CategoriesSheet } from '../components/CategoriesSheet';
 import { ClaimSheet } from '../components/ClaimSheet';
 import { ExpenseSheet } from '../components/ExpenseSheet';
@@ -41,7 +42,10 @@ type OpenSheet =
   | { kind: 'share' }
   | { kind: 'claim' }
   | { kind: 'categories' }
+  | { kind: 'archived' }
   | null;
+
+const expensesLabel = (expenses: Expense[]) => (expenses.length === 1 ? `“${expenses[0].title}”` : pluralize(expenses.length, 'expense'));
 
 export function TripPage() {
   const { tripId } = useParams();
@@ -144,6 +148,20 @@ function TripView({ trip }: { trip: Trip }) {
       message: `Deleted “${expense.title}”`,
       action: { label: 'Undo', run: () => apply(trip.id, { type: 'expense/upsert', expense }) },
     });
+  };
+
+  const archiveExpenses = (expenses: Expense[]) => {
+    const ids = expenses.map((expense) => expense.id);
+    apply(trip.id, { type: 'expense/archive', ids });
+    toast({
+      message: `Archived ${expensesLabel(expenses)}`,
+      action: { label: 'Undo', run: () => apply(trip.id, { type: 'expense/unarchive', ids }) },
+    });
+  };
+
+  const restoreExpenses = (expenses: Expense[]) => {
+    apply(trip.id, { type: 'expense/unarchive', ids: expenses.map((expense) => expense.id) });
+    toast({ message: `Restored ${expensesLabel(expenses)}` });
   };
 
   const nameOf = (id: string) => trip.people.find((person) => person.id === id)?.name ?? '';
@@ -261,6 +279,8 @@ function TripView({ trip }: { trip: Trip }) {
       onAdd={() => setSheet({ kind: 'expense' })}
       onOpen={(expense) => setSheet({ kind: 'expense', expense })}
       onDelete={deleteExpense}
+      onArchive={archiveExpenses}
+      onShowArchived={() => setSheet({ kind: 'archived' })}
     />
   );
   const insightsPanel = (
@@ -401,6 +421,7 @@ function TripView({ trip }: { trip: Trip }) {
         <ExpenseSheet trip={trip} expense={sheet.expense} myPersonId={me?.personId} onDelete={deleteExpense} onClose={close} />
       )}
       {sheet?.kind === 'categories' && <CategoriesSheet trip={trip} onClose={close} />}
+      {sheet?.kind === 'archived' && <ArchivedSheet trip={trip} onRestore={restoreExpenses} onClose={close} />}
       {sheet?.kind === 'trip' && <TripSheet trip={trip} onClose={close} />}
       {sheet?.kind === 'person' && <PersonSheet trip={trip} person={sheet.person} focusUpi={sheet.focusUpi} onClose={close} />}
       {sheet?.kind === 'upi' && (

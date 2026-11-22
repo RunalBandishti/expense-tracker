@@ -122,7 +122,7 @@ export async function applyOps(req: Request, user: SessionUser, id: string, defe
   if (ops.some((op) => op.type === 'trip/create')) throw new HttpError(400, 'Some changes were invalid');
   let createdIds = new Set<string>();
   const trip = await mutateTrip(id, user, (current) => {
-    const existing = new Set(current.expenses.map((expense) => expense.id));
+    const existing = new Set([...current.expenses, ...(current.archivedExpenses ?? [])].map((expense) => expense.id));
     createdIds = new Set(ops.flatMap((op) => (op.type === 'expense/upsert' && !existing.has(op.expense.id) ? [op.expense.id] : [])));
     return ops.reduce((acc, op) => applyOp(acc, op) ?? acc, current);
   });
