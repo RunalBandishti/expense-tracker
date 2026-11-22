@@ -45,10 +45,7 @@ export function tripSummaryText(trip: Trip, { liveLink, origin, includeExpenses,
   }
   if (includeExpenses && trip.expenses.length) {
     lines.push('', '*Expenses*');
-    for (const expense of [...trip.expenses].sort(byDate)) {
-      const paidBy = expense.paidById ? ` (paid by ${nameOf(expense.paidById)})` : '';
-      lines.push(`• ${formatShortDate(expense.date)} · ${expense.title}: ${money(expense.amount)}${paidBy}`);
-    }
+    for (const expense of [...trip.expenses].sort(byDate)) lines.push(`• ${formatShortDate(expense.date)} · ${expense.title}: ${money(expense.amount)}`);
   }
   if (liveLink) lines.push('', `Live details: ${liveLink}`);
   return lines.join('\n');
